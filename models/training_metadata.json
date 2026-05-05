@@ -1,0 +1,52 @@
+{
+  "saved_at_utc": "2026-05-05T14:27:08.817001+00:00",
+  "best_model_name": "Logistic Regression",
+  "test_metrics": {
+    "accuracy": 0.8524590163934426,
+    "precision": 0.88,
+    "recall": 0.7857142857142857,
+    "f1": 0.8301886792452831,
+    "roc_auc": 0.9015151515151516
+  },
+  "all_runs_test_metrics": {
+    "Logistic Regression": {
+      "accuracy": 0.8524590163934426,
+      "precision": 0.88,
+      "recall": 0.7857142857142857,
+      "f1": 0.8301886792452831,
+      "roc_auc": 0.9015151515151516
+    },
+    "Random Forest": {
+      "accuracy": 0.8032786885245902,
+      "precision": 0.8076923076923077,
+      "recall": 0.75,
+      "f1": 0.7777777777777778,
+      "roc_auc": 0.8755411255411255
+    }
+  },
+  "random_state": 42,
+  "cv_splits": 5,
+  "feature_names": [
+    "age",
+    "sex",
+    "cp",
+    "trestbps",
+    "chol",
+    "fbs",
+    "restecg",
+    "thalach",
+    "exang",
+    "oldpeak",
+    "slope",
+    "ca",
+    "thal"
+  ],
+  "sklearn_version": "1.6.1",
+  "pandas_version": "2.3.3",
+  "numpy_version": "2.0.2",
+  "clean_training_csv": "/Users/sandibha/repos/ml_learning/Mlops-assignment/data/heart_clean.csv",
+  "artifacts": {
+    "model_pickle": "/Users/sandibha/repos/ml_learning/Mlops-assignment/models/best_model.pkl",
+    "feature_names_pickle": "/Users/sandibha/repos/ml_learning/Mlops-assignment/models/feature_names.pkl"
+  }
+}

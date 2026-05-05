@@ -26,8 +26,13 @@ pytest-results.xml
 # OS
 .DS_Store
 
-# Optional: uncomment if you do not want to commit experiment outputs
-# mlruns/
+# Generated / local outputs (do not commit)
+mlruns/
+logs/
+api_requests.log
+.coverage
+
+# Optional: uncomment if you do not want to commit trained artifacts or plots
 # models/*.pkl
 # models/training_metadata.json
 # screenshots/*.png

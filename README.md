@@ -68,7 +68,7 @@ Tip: `bash scripts/test_full_flow.sh` runs this path end-to-end (including Docke
 ## Project structure
 
 ```
-Mlops-assignment/
+ml_learning/                       # repository root (your clone folder may differ)
 ├── .github/workflows/ci.yml       # CI: lint, pytest, train, artifact upload, Docker smoke
 ├── data/
 │   ├── heart_disease_uci.csv      # Bundled raw / UCI-style input
@@ -118,7 +118,7 @@ docker info
 ### 2. Create venv + install deps
 
 ```bash
-cd ~/repos/Mlops-assignment
+cd ~/repos/ml_learning
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -147,7 +147,7 @@ Notes:
 - If you use the full stack in **step 5** (`docker-compose up ...`), you can **skip** this section (Compose builds + runs the API).
 
 ```bash
-cd ~/repos/Mlops-assignment
+cd ~/repos/ml_learning
 
 docker build -t heart-disease-api:latest .
 docker run --rm -p 8000:8000 heart-disease-api:latest
@@ -228,7 +228,7 @@ Every command assumes you opened a terminal **in the project folder** (the direc
 ### 1. Environment setup
 
 ```bash
-cd ~/repos/Mlops-assignment
+cd ~/repos/ml_learning
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -248,7 +248,7 @@ python3 src/model_training/predict.py --output data/batch_predictions.csv
 ### 3. MLflow UI (use a second terminal; keep project root + venv)
 
 ```bash
-cd ~/repos/Mlops-assignment
+cd ~/repos/ml_learning
 source .venv/bin/activate
 
 python3 -m mlflow ui --backend-store-uri ./mlruns --host 127.0.0.1 -p 5050
@@ -482,7 +482,7 @@ Push this repo to GitHub to enable the workflow. Local one-shot parity (without 
 2. **Internet** (only the first time, to download Python packages).
 
 3. **This project folder** on your machine (the folder that contains this `README.md`, `src/` with the Python packages, `models/`, `data/`, etc.).  
-   In the examples below we call it **`Mlops-assignment`**.  
+   In the examples below we call it **`ml_learning`** (your Git clone folder name may differ).  
    Replace the path with **your** real location.
 
 ---
@@ -495,10 +495,10 @@ Push this repo to GitHub to enable the workflow. Local one-shot parity (without 
 2. Go to the project folder (change the path to match where you saved the project):
 
 ```bash
-cd ~/repos/Mlops-assignment
+cd ~/repos/ml_learning
 ```
 
-If you are not sure of the path, drag the **`Mlops-assignment`** folder from Finder into the Terminal window after typing `cd ` (with a space). Press Enter.
+If you are not sure of the path, drag the **`ml_learning`** folder from Finder into the Terminal window after typing `cd ` (with a space). Press Enter.
 
 ### Windows
 
@@ -506,7 +506,7 @@ If you are not sure of the path, drag the **`Mlops-assignment`** folder from Fin
 2. Go to the project folder (change the path to match your PC):
 
 ```cmd
-cd C:\Users\YourName\repos\Mlops-assignment
+cd C:\Users\YourName\repos\ml_learning
 ```
 
 **Important:** All commands in the next parts must be run **from this project folder** (the same place as `README.md`).
