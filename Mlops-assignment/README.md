@@ -5,7 +5,7 @@
 
 An end-to-end ML pipeline for predicting heart disease risk using the UCI Heart Disease dataset: preprocessing, EDA, training with MLflow, FastAPI serving, Docker, Prometheus/Grafana monitoring, and optional Kubernetes manifests (`k8s/`).
 
-**Jump to:** [Architecture](#architecture) · [Project structure](#project-structure) · [Quick Start](#quick-start-end-to-end) · [Troubleshooting](#troubleshooting) · [All commands](#all-commands-copy-paste-reference) · [Rubric mapping](#rubric-mapping-course-mlops-s2-25_amlcszg523)
+**Jump to:** [Architecture](#architecture) · [Project structure](#project-structure) · [Quick Start](#quick-start-end-to-end) · [Troubleshooting](#troubleshooting) · [All commands](#all-commands-copy-paste-reference)
 
 ---
 
@@ -87,7 +87,7 @@ Mlops-assignment/
 │   ├── prometheus.yml
 │   └── grafana/dashboards/        # e.g. heart_disease_api.json
 ├── k8s/                           # Namespace, Deployment, Service, optional HPA/Ingress
-├── scripts/test_full_flow.sh      # One-shot lint/tests/pipeline + Compose checks
+├── scripts/test_full_flow.sh      # One-shot: lint, tests (pytest-results.xml), pipeline, Compose (stays up)
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
@@ -431,7 +431,12 @@ python3 -m pytest tests/test_pipeline.py -v
 python3 -m pytest tests/test_pipeline.py -v \
   --cov=data_preprocessing --cov=model_training --cov=api \
   --cov-report=term-missing
+
+# JUnit XML report (same format CI uploads as an artifact)
+python3 -m pytest tests/ -v --tb=short --junitxml=pytest-results.xml
 ```
+
+**JUnit report:** Running pytest with `--junitxml=pytest-results.xml` writes a machine-readable report in the project root. **`scripts/test_full_flow.sh`** does this in step **[2/6]**; the file is listed in `.gitignore` so it is not committed by mistake. In GitHub Actions, the workflow uploads it as the **`test-results`** artifact (download from **Actions → run → Artifacts**).
 
 **What is tested:** loading raw data, cleaning (no missing/`?`, binary target, numeric features), train/test split shapes, **Logistic Regression** and **Random Forest** pipelines (`fit` / `predict` / `predict_proba`), API **`PatientData`** validation.
 
@@ -452,10 +457,11 @@ You can also run it **manually** in GitHub:
 **Job `lint-test-train`**
 
 1. **flake8** on `src/` and `tests/`
-2. **pytest** (`tests/`)
-3. **`python3 src/eda/eda.py preprocess`** — builds `data/heart_clean.csv`
-4. **`python3 src/model_training/train.py`** — trains both models and writes **MLflow** under `mlruns/`
-5. **Artifact upload** — `models/` and `mlruns/` as `ml-training` (14-day retention) when the job succeeds.
+2. **pytest** (`tests/`) — writes **`pytest-results.xml`** (JUnit format)
+3. **Artifact upload — tests** — **`test-results`** artifact contains `pytest-results.xml` (14-day retention; available even if later steps fail when configured with `if: always()`)
+4. **`python3 src/eda/eda.py preprocess`** — builds `data/heart_clean.csv`
+5. **`python3 src/model_training/train.py`** — trains both models and writes **MLflow** under `mlruns/`
+6. **Artifact upload — training** — `models/` and `mlruns/` as **`ml-training`** (14-day retention) when the job succeeds.
 
 **Job `docker-build-smoke`** (runs after `lint-test-train` succeeds)
 
@@ -632,7 +638,7 @@ If you use **bash** and already completed Part B and Part C:
 bash scripts/test_full_flow.sh
 ```
 
-This runs EDA, training, and predictions in one go. You still start **MLflow** separately (Part E).
+This runs linting, tests (**writes `pytest-results.xml`**), EDA, training, predictions, then Docker Compose monitoring (**Compose stack stays running** on success — stop with **`docker compose down`**). **Docker must be running.** You still start **MLflow** separately (Part E).
 
 ---
 
@@ -660,32 +666,6 @@ This runs EDA, training, and predictions in one go. You still start **MLflow** s
 
 ---
 
-## Rubric mapping (course MLOps S2-25_AMLCSZG523)
-
-Use this list in your report to map each criterion to evidence in this repo.
-
-- **1 — Data acquisition & EDA [5]** — Dataset, clean/preprocess (missing values, encoding), EDA visuals (histograms, correlation heatmap, class balance). **Evidence:** `data/heart_disease_uci.csv` (bundled) and the **Dataset citation** line at the end of this section. **Preprocess:** `src/data_preprocessing/pre_processing_data.py` (`load_data`, `clean_data`; imputation, category maps, binary target). **EDA:** `src/eda/eda.py` → PNGs in `screenshots/` (`class_balance.png`, `feature_histograms.png`, `correlation_heatmap.png`, `age_by_target.png`). Run Part D Step 1: `python3 src/eda/eda.py all`.
-
-- **2 — Feature engineering & models [8]** — Scaling/encoding, ≥2 classifiers, documented tuning, CV + metrics (accuracy, precision, recall, ROC-AUC). **Evidence:** `build_logistic_pipeline()` (imputer + `StandardScaler` + LR), `build_random_forest_pipeline()` (imputer + RF) in `src/model_training/train.py`. **Tuning:** `GridSearchCV` + stratified CV. **Metrics:** `_binary_metrics`, `classification_report`, confusion matrix & ROC plots in `screenshots/` (`cm_*.png`, `roc_*.png`).
-
-- **3 — Experiment tracking [5]** — MLflow (or similar): params, metrics, artifacts, plots. **Evidence:** `mlflow` in `train.py` (experiment `heart_disease_prediction`), logged params/metrics/plots + sklearn model per run. **UI:** Part E — `python3 -m mlflow ui --backend-store-uri ./mlruns`.
-
-- **4 — Packaging & reproducibility [7]** — Saved model, `requirements.txt`, reproducible preprocessing. **Evidence:** `models/best_model.pkl` (joblib sklearn `Pipeline`), `models/feature_names.pkl`, `models/training_metadata.json`; MLflow artifacts under `mlruns/`; same `clean_data`/`load_data` in `src/model_training/predict.py` as training; `requirements.txt`. See `models/README.txt`.
-
-- **5 — CI/CD & testing [8]** — Unit tests; pipeline with lint, tests, training; artifacts/logs. **Evidence:** `tests/test_pipeline.py` and **Automated tests** section. **Lint:** `flake8` + `.flake8`. **CI:** `.github/workflows/ci.yml` (flake8 → pytest → preprocess → train → upload `models/` + `mlruns/` → Docker build + `/predict` smoke test).
-
-- **6 — Model containerisation [5]** — Dockerised API; **`/predict`** JSON in/out; prediction + confidence. **Evidence:** `Dockerfile` (`uvicorn api.api:app`, `PYTHONPATH=/app/src`), `docker build` / `docker run` ([All commands §10](#10-docker-image-api-only)). **Schema:** `PatientData` in `src/api/api.py`; response includes `prediction`, `confidence`, `label`, `risk_level`.
-
-- **7 — Production deployment [7]** — Cloud or Kubernetes; manifests; LB/Ingress; verify endpoints. **Evidence:** `k8s/` — `namespace.yaml`, `deployment.yaml`, `service.yaml` (LoadBalancer), `hpa.yaml`, `ingress.yaml`. Build/load `heart-disease-api:latest`, then `kubectl apply -f k8s/`. For coursework: screenshots of `kubectl get pods,svc`, browser `/health` and `/predict`, Ingress/LB URL (edit host in `ingress.yaml`).
-
-- **8 — Monitoring & logging [3]** — API request logging; Prometheus/Grafana or dashboard. **Evidence:** `src/api/api.py` → stdout + file (`API_LOG_PATH`, default `api_requests.log`). **Metrics:** `GET /metrics`. **Stack:** `docker-compose.yml`, `monitoring/prometheus.yml`, Grafana provisioning, `monitoring/grafana/dashboards/heart_disease_api.json`.
-
-- **9 — Documentation & reporting [2]** — Setup, modelling choices, MLflow summary, architecture, CI/deploy screenshots, repo link. **Evidence:** This README. **Submission:** PDF/DOCX (~10 pages), architecture diagram, screenshots (CI, Docker/K8s, Grafana), short video, deployed URL or local access — per instructor.
-
-**Dataset citation:** UCI Heart Disease — https://archive.ics.uci.edu/ml/datasets/Heart+Disease
-
----
-
 ## Test the complete flow (end-to-end)
 
 Use this once **Part B + Part C** (venv + `python3 -m pip install -r requirements.txt`) are done. All paths assume the **repository root**.
@@ -694,28 +674,27 @@ Use this once **Part B + Part C** (venv + `python3 -m pip install -r requirement
 
 Runs the **full MLOps path** on your machine:
 
-1. **flake8** → **pytest** → **`python3 src/eda/eda.py all`** → **train** → **batch predict**
-2. **Container / monitoring (default):** runs **Docker Compose** — API **:8000** + Prometheus **:9090** + Grafana **:3000**, sends **`POST /predict`** traffic, checks Prometheus metrics and Grafana dashboards, then runs **`docker compose down`** or **`docker-compose down`** (stack stopped when the script finishes).
-   - **`--demo`** (macOS): tries to start Docker Desktop or install/start Colima first, then runs the same default flow.
-   - **`--skip-docker`:** steps 1–5 only (no Compose).
+1. **flake8** → **pytest** (writes **`pytest-results.xml`**) → **`python3 src/eda/eda.py all`** → **train** → **batch predict**
+2. **Container / monitoring:** runs **Docker Compose** — API **:8000** + Prometheus **:9090** + Grafana **:3000**, sends **`POST /predict`** traffic, checks Prometheus metrics and Grafana dashboards. On success the stack is **left running** so you can open the UIs; stop it manually when finished: **`docker compose down`** (or **`docker-compose down`**).  
+   **Docker must be running** before you start the script (there are no `--demo` / `--skip-docker` flags).
 
 ```bash
-# End-to-end (default): lint → tests → EDA → train → predict → Docker Compose monitoring
+# End-to-end: lint → tests → EDA → train → predict → Docker Compose monitoring (stack stays up)
 bash scripts/test_full_flow.sh
 ```
 
 **Note:** The default run needs ports **8000**, **9090**, and **3000** free. Do not run another API on **8000** at the same time.
 
-On success you will have: `data/heart_clean.csv`, plots under `screenshots/`, `models/*.pkl`, `mlruns/`, and `data/batch_predictions.csv`. Step **[6/6]** validates the **Compose** monitoring stack (not a separate “smoke” mode).
+On success you will have: `pytest-results.xml`, `data/heart_clean.csv`, plots under `screenshots/`, `models/*.pkl`, `mlruns/`, and `data/batch_predictions.csv`. Step **[6/6]** validates the **Compose** monitoring stack (not a separate “smoke” mode).
 
 ### Option B — same steps, manual copy-paste
 
 1. **`python3 -m flake8 src tests`** — Expect exit code 0.
-2. **`python3 -m pytest tests/ -v --tb=short`** — Expect all tests passed.
+2. **`python3 -m pytest tests/ -v --tb=short --junitxml=pytest-results.xml`** — Expect all tests passed; JUnit report at **`pytest-results.xml`**.
 3. **`python3 src/eda/eda.py all`** — No traceback; `screenshots/*.png` and `data/heart_clean.csv` created.
 4. **`python3 src/model_training/train.py`** — Saved-model message; `models/best_model.pkl`, `models/feature_names.pkl`, `mlruns/` updated.
 5. **`python3 src/model_training/predict.py --output data/batch_predictions.csv`** — Preview printed; CSV written.
-6. **Compose monitoring** — Same as **`scripts/test_full_flow.sh`** step **[6/6]** — `docker compose` or `docker-compose` brings up API + Prometheus + Grafana, health checks, `/predict`, Prometheus queries, then tears the stack down. Optional: single-container API ([Quick Start step 4](#4-optional-build-and-run-the-api-docker-image-only)).
+6. **Compose monitoring** — Same as **`scripts/test_full_flow.sh`** step **[6/6]** — `docker compose` or `docker-compose` brings up API + Prometheus + Grafana, health checks, `/predict`, Prometheus queries; **`test_full_flow.sh` leaves the stack running** (stop with **`docker compose down`**). Optional: single-container API ([Quick Start step 4](#4-optional-build-and-run-the-api-docker-image-only)).
 7. *(optional)* **`python3 -m mlflow ui --backend-store-uri ./mlruns --host 127.0.0.1 -p 5050`** — Browser `http://127.0.0.1:5050` shows experiment **`heart_disease_prediction`**.
 
 ### Option C — REST API (after step 5)
@@ -751,20 +730,20 @@ Then repeat the **`curl`** commands against `http://127.0.0.1:8000` (or use `/do
 
 ### Option E — API + Prometheus + Grafana
 
-Automated check (same as **default** `test_full_flow.sh` — builds stack, hits metrics APIs, tears down):
+**Recommended:** run the one-shot script (same checks as before; Compose stack **stays up** on success):
 
 ```bash
 bash scripts/test_full_flow.sh
 ```
 
-To **keep** the stack running and explore the UI manually:
+**Alternative** — bring the stack up without the rest of the pipeline:
 
 ```bash
 docker compose up --build
 # or:  docker-compose up --build
 ```
 
-Then open API (**8000**), Prometheus (**9090**), Grafana (**3000**, admin / admin123). Send a few **`POST /predict`** requests, then open the **Heart Disease API (Prometheus)** dashboard in Grafana.
+Then open API (**8000**), Prometheus (**9090**), Grafana (**3000**, admin / admin123). Send a few **`POST /predict`** requests, then open the **Heart Disease API (Prometheus)** dashboard in Grafana. When finished: **`docker compose down`**.
 
 ### Option F — Kubernetes (advanced)
 
@@ -869,13 +848,13 @@ docker info
 - **MLflow page blank** — Train first (`python3 src/model_training/train.py`). Use `./mlruns` and the project root as in [Part E](#part-e--open-the-mlflow-web-ui).
 - **`test_full_flow.sh` fails at train** (`PermissionError` / `sysconf` / **joblib**) — Some sandboxes block parallel workers. `train.py` auto-detects this and falls back to a single worker when `os.sysconf` is blocked. You can also force it: `export MLOPS_N_JOBS=1` before `python src/model_training/train.py`, or run in a normal (non-sandbox) terminal.
 
-### C. `test_full_flow.sh` and Docker bootstrap
+### C. `test_full_flow.sh` and Docker
 
-- **Docker step skipped or fails** — Start **Docker Desktop** (macOS/Windows). Free the ports the script needs. For Python-only steps: `bash scripts/test_full_flow.sh --skip-docker`.
+- **Step [6/6] fails — Docker not running** — Start **Docker Desktop** (macOS/Windows) or your Linux Docker daemon, then re-run **`bash scripts/test_full_flow.sh`**. To run only Python steps yourself (no script): use Part D / Option B commands (`flake8`, `pytest`, `eda.py`, `train.py`, `predict.py`).
 - **Compose / monitoring fails (ports / bind)** — Keep **8000**, **9090**, **3000** free. Stop any local `python3 src/api/api.py` or another Compose stack on those ports; run `docker compose down` or `docker-compose down` in this repo if something is still bound.
 - **`unknown flag: --build`** when running **`docker compose up --build`** — Your CLI may not have the Compose **V2 plugin**; use **`docker-compose up --build`** (install: `brew install docker-compose` on macOS, or [Docker Compose install](https://docs.docker.com/compose/install/)).
 - **`unknown shorthand flag: 'f'` or Compose not found** — Install Compose (e.g. `brew install docker-compose`). Run the script from the **repo root** (no fragile `-f` path).
-- **`docker` not on PATH** — On macOS with [Homebrew](https://brew.sh), try `bash scripts/test_full_flow.sh --demo` (Docker Desktop or **Colima**). Or install [Docker Desktop](https://docs.docker.com/desktop/) manually. Python-only: `bash scripts/test_full_flow.sh --skip-docker`.
+- **`docker` not on PATH** — Install [Docker Desktop](https://docs.docker.com/desktop/) or add the CLI to your PATH (macOS: `/Applications/Docker.app/Contents/Resources/bin`). **Colima** users: ensure `docker context` points at Colima and `docker info` works.
 
 ---
 

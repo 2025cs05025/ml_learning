@@ -36,7 +36,16 @@ jobs:
         run: flake8 src tests
 
       - name: Unit tests (pytest)
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --junitxml=pytest-results.xml
+
+      - name: Upload test results (pytest JUnit XML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: pytest-results.xml
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Preprocess — create heart_clean.csv
         run: python src/eda/eda.py preprocess

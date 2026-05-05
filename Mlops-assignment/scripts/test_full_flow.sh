@@ -53,8 +53,8 @@ fi
 echo "==> [1/6] Lint (flake8)"
 flake8 src tests
 
-echo "==> [2/6] Unit tests (pytest)"
-pytest tests/ -v --tb=short
+echo "==> [2/6] Unit tests (pytest) → pytest-results.xml"
+pytest tests/ -v --tb=short --junitxml=pytest-results.xml
 
 echo "==> [3/6] EDA — load, clean CSV, plots (python src/eda/eda.py all)"
 python src/eda/eda.py all

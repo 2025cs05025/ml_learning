@@ -9,6 +9,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+
+# Pytest JUnit report (generated locally by scripts/test_full_flow.sh or pytest --junitxml)
+pytest-results.xml
 .mypy_cache/
 .ruff_cache/
 
