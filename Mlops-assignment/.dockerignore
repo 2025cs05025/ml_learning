@@ -1,0 +1,15 @@
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+mlruns/
+notebooks/
+screenshots/
+*.pdf
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+*.log

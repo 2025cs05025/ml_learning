@@ -1,0 +1,49 @@
+2026-05-05 08:52:07,398  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 08:52:07,398  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 08:56:45,360  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 08:56:45,360  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:09:48,429  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:09:48,430  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:15:02,263  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:15:02,263  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:17:26,045  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:17:26,045  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:23:55,222  ERROR  Prediction error
+Traceback (most recent call last):
+  File "/app/src/api/api.py", line 215, in predict
+    prediction = int(model.predict(X)[0])
+                     ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/pipeline.py", line 745, in predict
+    Xt = transform.transform(Xt)
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/utils/_set_output.py", line 316, in wrapped
+    data_to_wrap = f(self, X, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/sklearn/impute/_base.py", line 632, in transform
+    self._fill_dtype, copy=False
+    ^^^^^^^^^^^^^^^^
+AttributeError: 'SimpleImputer' object has no attribute '_fill_dtype'
+2026-05-05 09:26:36,591  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:26:36,591  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:35:33,008  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.010s | age=63.0 sex=1 cp=3
+2026-05-05 09:38:15,135  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:38:15,136  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 09:44:52,829  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.015s | age=63.0 sex=1 cp=3
+2026-05-05 09:58:50,345  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 09:58:50,345  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 10:01:38,015  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 10:01:38,015  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 10:05:40,925  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 10:05:40,926  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 10:06:02,696  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.002s | age=63.0 sex=1 cp=3
+2026-05-05 10:08:02,027  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 10:08:02,027  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 10:08:25,536  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.003s | age=63.0 sex=1 cp=3
+2026-05-05 10:08:25,565  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.002s | age=63.0 sex=1 cp=3
+2026-05-05 10:08:25,591  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.001s | age=63.0 sex=1 cp=3
+2026-05-05 10:08:25,615  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.002s | age=63.0 sex=1 cp=3
+2026-05-05 10:08:25,638  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.001s | age=63.0 sex=1 cp=3
+2026-05-05 11:33:34,686  INFO  Model loaded from /app/models/best_model.pkl
+2026-05-05 11:33:34,687  INFO  Feature order (13): ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+2026-05-05 11:34:56,864  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.014s | age=63.0 sex=1 cp=3
+2026-05-05 11:35:00,118  INFO  PREDICT | pred=1 conf=0.708 risk=HIGH latency=0.002s | age=63.0 sex=1 cp=3

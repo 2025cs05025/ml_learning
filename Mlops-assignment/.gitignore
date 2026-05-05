@@ -1,0 +1,31 @@
+# MLOps assignment — ignore generated/env-specific files (keep repo lean).
+# Uncomment optional lines at bottom if you do not want to commit mlruns/ or artifacts.
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local matplotlib / font cache (optional)
+.mplconfig/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Optional: uncomment if you do not want to commit experiment outputs
+# mlruns/
+# models/*.pkl
+# models/training_metadata.json
+# screenshots/*.png
+# data/heart_clean.csv

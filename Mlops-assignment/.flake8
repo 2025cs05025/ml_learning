@@ -1,0 +1,13 @@
+# Line length / imports-after-sys.path (scripts add src/ before project imports)
+[flake8]
+max-line-length = 120
+extend-ignore = E402, W503
+exclude =
+    .venv,
+    .venv-*,
+    venv,
+    __pycache__,
+    .git,
+    mlruns,
+    .pytest_cache,
+    .mypy_cache,
