@@ -8,10 +8,6 @@
 #   flake8 → pytest → EDA → train → batch predict → Docker Compose monitoring
 #   (API :8000 + Prometheus :9090 + Grafana :3000), then stack is stopped.
 #
-# Optional flags:
-#   --demo         (macOS) try to start Docker Desktop or Colima first.
-#   --skip-docker  Python-only (no containers).
-#
 set -euo pipefail
 
 # If `docker` is not on PATH (common when Docker Desktop is installed but the CLI dir was never linked),
@@ -40,98 +36,6 @@ ensure_docker_on_path() {
 docker_daemon_ready() {
   command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
 }
-
-# macOS: try Docker Desktop, then Homebrew Colima + docker CLI. Requires network for first brew install.
-# Linux: print engine install link (no sudo in script).
-bootstrap_docker_for_demo() {
-  echo ""
-  echo "==> [bootstrap] Docker daemon not running — attempting setup (--install-docker / --demo)"
-  local os
-  os="$(uname -s)"
-
-  if [[ "$os" == "Darwin" ]]; then
-    if [[ -d "/Applications/Docker.app" ]]; then
-      echo "    Launching Docker Desktop (wait up to ~3 min for daemon)..."
-      open -a Docker 2>/dev/null || true
-      local i
-      for i in $(seq 1 90); do
-        ensure_docker_on_path || true
-        hash -r 2>/dev/null || true
-        if docker_daemon_ready; then
-          echo "    Docker Desktop is ready."
-          return 0
-        fi
-        sleep 2
-      done
-      echo "    Docker Desktop did not become ready in time (open Docker.app manually and retry)."
-    fi
-
-    if command -v brew >/dev/null 2>&1; then
-      echo "    Installing Colima + Docker CLI via Homebrew (first run downloads a VM; needs network)..."
-      brew list colima &>/dev/null || brew install colima docker
-      if colima status 2>/dev/null | grep -q Running; then
-        echo "    Colima already running."
-      else
-        colima start --cpu 2 --memory 4
-      fi
-      ensure_docker_on_path || true
-      hash -r 2>/dev/null || true
-      sleep 2
-      if docker_daemon_ready; then
-        echo "    Colima Docker daemon is ready."
-        return 0
-      fi
-    else
-      echo "    Install Homebrew: https://brew.sh — then re-run with --install-docker" >&2
-    fi
-    return 1
-  fi
-
-  if [[ "$os" == "Linux" ]]; then
-    echo "    Automatic Docker install on Linux needs sudo; install the engine then re-run:" >&2
-    echo "      https://docs.docker.com/engine/install/" >&2
-    echo "    (Example Ubuntu: sudo apt-get install -y docker.io && sudo usermod -aG docker \"\$USER\")" >&2
-    return 1
-  fi
-
-  echo "    Unsupported OS for automatic Docker bootstrap: $os" >&2
-  return 1
-}
-
-SKIP_DOCKER=0
-MONITORING=1
-INSTALL_DOCKER=0
-for arg in "$@"; do
-  case "$arg" in
-    --skip-docker) SKIP_DOCKER=1 ;;
-    --monitoring) MONITORING=1 ;; # kept for backwards-compat (same as default)
-    --install-docker|--demo) INSTALL_DOCKER=1 ;;
-    -h|--help)
-      echo "Usage: $0 [--demo] [--skip-docker]"
-      echo ""
-      echo "  (default)      Full end-to-end run (includes Docker Compose monitoring stack)."
-      echo "  --install-docker Same as --demo: on macOS, try to start Docker Desktop or install/start Colima via Homebrew,"
-      echo "                   then run container steps. Fails if daemon cannot be started."
-      echo "  --demo           Alias for --install-docker."
-      echo "  --skip-docker    Steps 1–5 only (lint, tests, EDA, train, predict)."
-      echo ""
-      echo "  Examples:"
-      echo "    bash $0                        # full monitoring stack"
-      echo "    bash $0 --demo                 # bootstrap Docker on Mac + run default"
-      exit 0
-      ;;
-  esac
-done
-
-if [[ "$SKIP_DOCKER" -eq 1 && "$MONITORING" -eq 1 ]]; then
-  echo "ERROR: use either --skip-docker or default monitoring run, not both." >&2
-  exit 2
-fi
-
-if [[ "$SKIP_DOCKER" -eq 1 && "$INSTALL_DOCKER" -eq 1 ]]; then
-  echo "ERROR: --skip-docker cannot be combined with --install-docker / --demo." >&2
-  exit 2
-fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -317,47 +221,25 @@ assert r and float(r[0]['value'][1]) == 1.0, 'target not up'
 print('    OK — scrape target UP')
 "
 
-  compose_down_safe
-  echo "  • docker compose down (stack stopped)"
+  echo "  • Stack is healthy and will be left running."
+  echo "  • Stop it when you’re done:"
+  echo "      docker compose down   (or: docker-compose down)"
 }
 
 # Pick up Docker CLI again if Docker Desktop was started while steps 1–5 were running.
 ensure_docker_on_path || true
 
-if [[ "$SKIP_DOCKER" -eq 1 ]]; then
+if ! docker_daemon_ready; then
   echo ""
-  echo "=== Python pipeline completed (--skip-docker: no container test) ==="
-else
-  if ! docker_daemon_ready; then
-    if [[ "$INSTALL_DOCKER" -eq 1 ]]; then
-      if ! bootstrap_docker_for_demo; then
-        echo ""
-        echo "ERROR: Could not start Docker. Install Docker Desktop: https://docs.docker.com/desktop/" >&2
-        exit 1
-      fi
-      ensure_docker_on_path || true
-      hash -r 2>/dev/null || true
-    fi
-  fi
-
-  ensure_docker_on_path || true
-
-  if ! docker_daemon_ready; then
-    echo ""
-    echo "WARN: Docker daemon not available — skipping step [6/6]."
-    echo ""
-    echo "  Fix (pick one):"
-    echo "    1. One-shot demo (macOS + Homebrew):  bash $0 --demo"
-    echo "    2. Install Docker Desktop: https://docs.docker.com/desktop/ — start it, then re-run this script."
-    echo "    3. Python-only:  bash $0 --skip-docker"
-    echo ""
-    echo "=== Python pipeline completed (no Docker / monitoring test) ==="
-  elif [[ "$MONITORING" -eq 1 ]]; then
-    monitoring_stack
-    echo ""
-    echo "=== Full MLOps pipeline completed (including monitoring stack test) ==="
-  fi
+  echo "ERROR: Docker daemon not available — cannot run step [6/6]." >&2
+  echo "  Start Docker Desktop (macOS/Windows) or your Docker engine, then re-run:" >&2
+  echo "    bash scripts/test_full_flow.sh" >&2
+  exit 1
 fi
+
+monitoring_stack
+echo ""
+echo "=== Full MLOps pipeline completed (including monitoring stack test) ==="
 
 echo ""
 echo "Done."

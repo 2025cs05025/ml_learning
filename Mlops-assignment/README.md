@@ -50,15 +50,15 @@ File-level path through this repository:
 
 ```mermaid
 flowchart TD
-  A[data/heart_disease_uci.csv (raw)] --> B[EDA: src/eda/eda.py all]
-  B --> C[data/heart_clean.csv + screenshots/ plots]
-  C --> D[Training: src/model_training/train.py]
-  D --> E[models/ best_model.pkl + feature_names.pkl + training_metadata.json]
-  D --> F[mlruns/ (MLflow params, metrics, artifacts)]
-  E --> G[API: src/api/api.py (/predict, /health, /metrics)]
-  G --> H[Prometheus scrape /metrics\nmonitoring/prometheus.yml]
-  H --> I[Grafana dashboard\nmonitoring/grafana/dashboards/heart_disease_api.json]
-  G --> J[logs/api_requests.log (optional file logging)]
+  A["data/heart_disease_uci.csv (raw)"] --> B["EDA: src/eda/eda.py all"]
+  B --> C["data/heart_clean.csv + screenshots/ plots"]
+  C --> D["Training: src/model_training/train.py"]
+  D --> E["models: best_model.pkl + feature_names.pkl + training_metadata.json"]
+  D --> F["mlruns: MLflow params, metrics, artifacts"]
+  E --> G["API: src/api/api.py (predict, health, metrics)"]
+  G --> H["Prometheus scrape: /metrics (monitoring/prometheus.yml)"]
+  H --> I["Grafana dashboard: monitoring/grafana/dashboards/heart_disease_api.json"]
+  G --> J["logs/api_requests.log (optional file logging)"]
 ```
 
 Tip: `bash scripts/test_full_flow.sh` runs this path end-to-end (including Docker Compose monitoring).
@@ -867,7 +867,7 @@ docker info
 - **`No module named ...`** — Activate the venv ([Part B](#part-b--create-a-virtual-environment-recommended)) and run `python3 -m pip install -r requirements.txt` again.
 - **`Clean data not found` when training** — Run `python3 src/eda/eda.py all` first ([Part D](#part-d--run-the-full-workflow-copypaste-in-order), Step 1).
 - **MLflow page blank** — Train first (`python3 src/model_training/train.py`). Use `./mlruns` and the project root as in [Part E](#part-e--open-the-mlflow-web-ui).
-- **`test_full_flow.sh` fails at train** (`PermissionError` / `sysconf` / **joblib**) — Some sandboxes block parallel workers. Run the script in a normal terminal, or set `n_jobs=1` in `GridSearchCV` inside `train.py`.
+- **`test_full_flow.sh` fails at train** (`PermissionError` / `sysconf` / **joblib**) — Some sandboxes block parallel workers. `train.py` auto-detects this and falls back to a single worker when `os.sysconf` is blocked. You can also force it: `export MLOPS_N_JOBS=1` before `python src/model_training/train.py`, or run in a normal (non-sandbox) terminal.
 
 ### C. `test_full_flow.sh` and Docker bootstrap
 

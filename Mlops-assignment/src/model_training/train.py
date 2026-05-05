@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -114,6 +115,31 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # controlled in prepare_features (default 20% hold-out), separate from these folds.
 CV_SPLITS = 5
 RANDOM_STATE = 42
+
+
+def get_parallel_n_jobs() -> int:
+    """
+    Workers for ``GridSearchCV``, ``cross_validate``, and tree ``n_jobs``.
+
+    ``MLOPS_N_JOBS`` (integer) overrides detection — use ``1`` in CI sandboxes or hosts
+    where joblib/loky fails with ``PermissionError`` on startup.
+
+    Otherwise, if ``os.sysconf`` is unavailable or forbidden (common in hardened
+    sandboxes), returns ``1`` so training still completes; on normal Unix/macOS returns
+    ``-1`` (all CPUs).
+    """
+    raw = os.environ.get("MLOPS_N_JOBS", "").strip()
+    if raw:
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+    if hasattr(os, "sysconf"):
+        try:
+            os.sysconf("SC_SEM_NSEMS_MAX")
+        except (PermissionError, OSError, ValueError):
+            return 1
+    return -1
 
 
 def load_clean_data(path: Path | str | None = None) -> pd.DataFrame:
@@ -213,7 +239,7 @@ def build_random_forest_pipeline() -> Pipeline:
                 "rf",
                 RandomForestClassifier(
                     random_state=RANDOM_STATE,
-                    n_jobs=-1,
+                    n_jobs=get_parallel_n_jobs(),
                     class_weight="balanced",
                 ),
             ),
@@ -259,7 +285,7 @@ def run_cross_validation_report(
         y_train,
         cv=cv,
         scoring=scoring,
-        n_jobs=-1,
+        n_jobs=get_parallel_n_jobs(),
         return_train_score=False,
     )
     summary = {}
@@ -409,7 +435,7 @@ def tune_train_log_mlflow(
         param_grid,
         cv=cv,
         scoring="roc_auc",
-        n_jobs=-1,
+        n_jobs=get_parallel_n_jobs(),
         refit=True,
     )
 
