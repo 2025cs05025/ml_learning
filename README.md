@@ -138,7 +138,7 @@ All commands assume the **repository root** (directory containing this `README.m
 | 7 | [API locally (Python)](#7-start-the-api-locally) | 1, 3 (`models/`) |
 | 8 | [Docker (one container)](#8-docker-api-image-only) | 1, 3 + **Docker daemon**; **stop step 7 first** so port **8000** is free |
 | 9 | [Docker Compose](#9-monitoring-stack-api--prometheus--grafana) (API + Prometheus + Grafana) | 1, 3 + Docker; **stop step 7 or 8** if they still hold **8000** |
-| 10 | [One-shot script](#10-one-shot-script-optional) (optional) | Docker running; runs lint, tests, EDA, train, batch predict, Compose |
+| 10 | [One-shot script](#10-one-shot-script-optional) (optional) | Default: needs Docker for Compose. Use `SKIP_COMPOSE=1` or `--skip-compose` for steps 1–5 only |
 
 **Rule:** Steps **2** then **3** are required before **6, 7, 8, or 9**. Step **7** (uvicorn in your venv) and steps **8–9** (containers) all want port **8000** by default—only run **one** of them at a time unless you change ports.
 
@@ -266,13 +266,30 @@ docker-compose down
 bash scripts/test_full_flow.sh
 ```
 
-Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running** (e.g. Docker Desktop, or **Colima** with `colima start` — if step [6/6] fails with “daemon not available”, run `docker info` after starting your engine).
+Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running** for step **[6/6]** (e.g. Docker Desktop, or **Colima** with `colima start` — confirm with `docker info`).
+
+If Docker is not available, run **steps 1–5 only** (no Compose):
+
+```bash
+SKIP_COMPOSE=1 bash scripts/test_full_flow.sh
+# or:
+bash scripts/test_full_flow.sh --skip-compose
+```
 
 ---
 
 ## Kubernetes deployment (Minikube)
 
-**Prerequisites:** Docker Desktop (or compatible runtime), **minikube**, **kubectl**.
+**Prerequisites:** A working **Docker daemon** (Docker Desktop or **Colima**), **minikube**, **kubectl**. Minikube’s **docker** driver talks to that same daemon, so Docker can stay running.
+
+**After Docker Compose:** Stop the Compose stack so nothing is still bound to **8000** on the host and you are not hitting the wrong API by mistake:
+
+```bash
+docker compose down
+# or:  docker-compose down
+```
+
+You do **not** need to quit Colima or Docker—only stop the Compose project. Then follow the steps below.
 
 **1. Start cluster**
 
@@ -310,20 +327,59 @@ kubectl rollout status deployment/heart-disease-api -n heart-disease --timeout=1
 **6. Check resources**
 
 ```bash
-kubectl get pods,svc,deployment -n heart-disease
+kubectl get pods,svc,deployment,endpoints -n heart-disease
 ```
 
-**7. Get service URL**
+Pods should be **Running** and **READY**; **endpoints** for `heart-disease-api-service` should list pod IPs (not empty). If pods are not ready: `kubectl describe pod -n heart-disease -l app=heart-disease-api` and `kubectl logs -n heart-disease -l app=heart-disease-api --tail=80`.
+
+**7. Reach the API from your computer**
+
+The Service maps **port 80** → container **8000**. On localhost you will usually see a **high port** (e.g. `62243`), not 8000.
+
+**Option A — `kubectl port-forward` (good default for quick tests)**  
+Leave this running in one terminal:
+
+```bash
+kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80
+```
+
+In another terminal:
+
+```bash
+curl -fsS http://127.0.0.1:8080/health
+```
+
+**Option B — `minikube service` (Minikube opens a tunnel to the LoadBalancer Service)**  
+Print the URL:
 
 ```bash
 minikube service heart-disease-api-service -n heart-disease --url
 ```
 
+Example output: `http://127.0.0.1:62243`. On **macOS** with the **Docker** driver, Minikube may warn that **the tunnel must stay active**—if `curl` fails after the command exits, either:
+
+- Run without `--url` in **terminal 1** (leave it open):  
+  `minikube service heart-disease-api-service -n heart-disease`  
+  then `curl` the URL/port it prints in **terminal 2**, or  
+- Use **Option A** above.
+
 **8. Test**
 
+With **Option A** (port-forward still running):
+
 ```bash
-curl -fsS http://127.0.0.1:<PORT>/health
-curl -fsS -X POST http://127.0.0.1:<PORT>/predict \
+curl -fsS http://127.0.0.1:8080/health
+curl -fsS -X POST http://127.0.0.1:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
+```
+
+With **Option B**:
+
+```bash
+API_URL=$(minikube service heart-disease-api-service -n heart-disease --url)
+curl -fsS "${API_URL}/health"
+curl -fsS -X POST "${API_URL}/predict" \
   -H "Content-Type: application/json" \
   -d '{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
 ```
@@ -477,9 +533,11 @@ docker-compose down
 - **Grafana “No data”** — Send at least one `POST /predict`; check http://127.0.0.1:9090/targets (job for the API should be **UP**).
 - **`docker-compose` vs `docker compose`** — Install the [Compose CLI](https://docs.docker.com/compose/install/) or use the Docker Desktop plugin; subcommands are the same.
 - **Docker permission denied (e.g. Colima)** — `colima stop && colima start`; verify `docker info`.
-- **`test_full_flow.sh` step [6/6] — Docker daemon not available** — Start your engine first (`colima start` on Mac with Colima, or open Docker Desktop), then `docker info` until it shows **Server** section; re-run the script.
+- **`test_full_flow.sh` step [6/6] — Docker daemon not available** — Start your engine (`colima start` with Colima, or Docker Desktop), then `docker info` until a **Server** section appears. Or finish without Compose: `SKIP_COMPOSE=1 bash scripts/test_full_flow.sh` or `--skip-compose`.
 - **`/predict` 500 in container** — Rebuild image; this repo pins **`scikit-learn==1.6.1`** in `requirements.txt` for pickle compatibility.
 - **Training parallel errors** — `export MLOPS_N_JOBS=1` before `train.py` in restricted environments.
+- **Minikube (macOS, Docker driver) — `minikube service --url` works once then `curl` fails** — The tunnel may stop when the process exits; use **`kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80`** (see README Kubernetes step 7), or keep **`minikube service …`** running without `--url` in another terminal.
+- **Minikube — `ImagePullBackOff` / image not found** — Build on the host, then **`minikube image load heart-disease-api:latest`**, or build inside Minikube’s Docker: `eval $(minikube docker-env)` then `docker build -t heart-disease-api:latest .`
 
 ---
 

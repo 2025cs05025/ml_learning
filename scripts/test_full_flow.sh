@@ -10,7 +10,23 @@
 #   (API :8000 + Prometheus :9090 + Grafana :3000). On success the stack stays up;
 #   stop manually: docker compose down  (or docker-compose down).
 #
+# Without Docker (steps 1–5 only):  SKIP_COMPOSE=1 bash scripts/test_full_flow.sh
+#   or:  bash scripts/test_full_flow.sh --skip-compose
+#
 set -euo pipefail
+
+SKIP_COMPOSE="${SKIP_COMPOSE:-0}"
+for _arg in "$@"; do
+  case "${_arg}" in
+    --skip-compose) SKIP_COMPOSE=1 ;;
+    -h|--help)
+      echo "Usage: bash scripts/test_full_flow.sh [--skip-compose]"
+      echo "  --skip-compose   Lint, tests, EDA, train, batch inference only (no Compose)."
+      echo "  Environment:     SKIP_COMPOSE=1 bash scripts/test_full_flow.sh"
+      exit 0
+      ;;
+  esac
+done
 
 # If `docker` is not on PATH (common when Docker Desktop is installed but the CLI dir was never linked),
 # prepend typical locations so step [6/6] works without manual PATH edits.
@@ -231,6 +247,13 @@ print('    OK — scrape target UP')
 # Pick up Docker CLI again if Docker Desktop was started while steps 1–5 were running.
 ensure_docker_on_path || true
 
+if [[ "${SKIP_COMPOSE}" == "1" ]]; then
+  echo ""
+  echo "SKIP_COMPOSE=1 — skipping step [6/6] (Docker Compose / monitoring)."
+  echo "=== Pipeline steps 1–5 completed ==="
+  exit 0
+fi
+
 if ! docker_daemon_ready; then
   echo ""
   echo "ERROR: Docker daemon not available — cannot run step [6/6] (Compose monitoring)." >&2
@@ -238,7 +261,13 @@ if ! docker_daemon_ready; then
   echo "  • macOS — Docker Desktop: open the app and wait until it says Docker is running." >&2
   echo "  • macOS/Linux — Colima:  colima start    then:  docker info" >&2
   echo "  • Linux — service:  sudo systemctl start docker   (or your distro equivalent)" >&2
-  echo "  Re-run:  bash scripts/test_full_flow.sh" >&2
+  echo "  Or run without Docker (steps 1–5 only):" >&2
+  echo "    SKIP_COMPOSE=1 bash scripts/test_full_flow.sh" >&2
+  echo "    bash scripts/test_full_flow.sh --skip-compose" >&2
+  echo "  Diagnostics (docker):" >&2
+  docker context ls 2>&1 | sed 's/^/    /' >&2 || true
+  docker info 2>&1 | tail -n 8 | sed 's/^/    /' >&2 || true
+  echo "  Re-run full script after Docker works:  bash scripts/test_full_flow.sh" >&2
   exit 1
 fi
 
