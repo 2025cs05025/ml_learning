@@ -7,6 +7,8 @@ Re-exports path constants from :mod:`config.paths` so other modules can use::
 
 instead of importing ``paths`` directly. Extend this package if you add shared
 non-path settings (random seeds, API URLs) later.
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from config.paths import (

@@ -32,6 +32,8 @@ documentation aligned when folders move or the repo is cloned elsewhere.
 
 Legacy aliases ``DEFAULT_CSV`` and ``DEFAULT_CLEAN_CSV`` match the raw/clean paths above for
 older imports.
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations

@@ -1,5 +1,6 @@
 # Kubernetes Namespace for heart-disease API resources.
 # Apply with: kubectl apply -f k8s/namespace.yaml
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 ---
 apiVersion: v1
 kind: Namespace

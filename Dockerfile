@@ -1,4 +1,5 @@
 # Dockerfile — production-style image for the FastAPI inference API (assignment Task 6).
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 #
 # Expects trained artifacts under models/ at build time (best_model.pkl, feature_names.pkl).
 # Build:  docker build -t heart-disease-api:latest .

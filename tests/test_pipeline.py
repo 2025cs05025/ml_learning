@@ -16,6 +16,8 @@ Unit tests for preprocessing, training helpers, and API schemas (assignment crit
 
 **Coverage:** ``load_data`` / ``clean_data``, train/test splits, both sklearn pipelines,
 ``predict_proba``, and ``PatientData`` validation.
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations

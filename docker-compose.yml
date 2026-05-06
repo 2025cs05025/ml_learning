@@ -1,4 +1,5 @@
 # docker-compose.yml — local stack: FastAPI + Prometheus + Grafana (Tasks 6 & 8).
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 #
 # Prerequisites: train once so ./models contains best_model.pkl and feature_names.pkl.
 # Usage (repo root), pick one:
@@ -61,7 +62,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/heart_disease_api.json:/var/lib/grafana/dashboards/heart_disease_api.json:ro
     depends_on:
       - prometheus
 

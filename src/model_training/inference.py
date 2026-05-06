@@ -22,7 +22,7 @@ Demonstrates reproducible packaging: no silent feature drift between train and i
 
 Train first so ``models/`` exists.
 
-Author: SANDIP BHATTACHARYYA — 2025cs05025
+Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations

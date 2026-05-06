@@ -14,6 +14,8 @@ imports; documentation may refer to the same stage as "data-preprocessing".
 **Exports.** ``load_data``, ``clean_data``, ``save_cleaned_csv``, plus path aliases
 mirroring :mod:`config.paths`. Implementation lives in
 :mod:`data_preprocessing.pre_processing_data`.
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from .pre_processing_data import (

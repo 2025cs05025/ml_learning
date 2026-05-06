@@ -1,11 +1,11 @@
 # Heart Disease Prediction — MLOps End-to-End Pipeline
 
-**Author:** SANDIP BHATTACHARYYA — `2025cs05025`  
+**Author:** SANDIP BHATTACHARYYA — BITS Pilani ID `2025cs05025`  
 **Course:** MLOps (S2-25_AMLCSZG523)
 
 An end-to-end ML pipeline for predicting heart disease risk using the UCI Heart Disease dataset: preprocessing, EDA, training with MLflow, batch inference, FastAPI, Docker, Prometheus/Grafana monitoring, GitHub Actions CI/CD, and optional Kubernetes (`k8s/`).
 
-**Jump to:** [Prerequisites](#prerequisites) · [Architecture](#architecture) · [Project structure](#project-structure) · [Data (`data/`)](#data) · [Quick start](#quick-start-end-to-end) · [Kubernetes](#kubernetes-deployment-minikube) · [Model details](#model-details) · [API](#api-endpoints) · [CI/CD](#cicd-pipeline-github-actions) · [Monitoring](#monitoring-prometheus-and-grafana) · [Troubleshooting](#troubleshooting)
+**Jump to:** [Prerequisites](#prerequisites) · [Architecture](#architecture) · [Project structure](#project-structure) · [YAML files (purpose)](#yaml-files-purpose) · [Data (`data/`)](#data) · [Quick start](#quick-start-end-to-end) · [Kubernetes](#kubernetes-deployment-minikube) · [Model details](#model-details) · [API](#api-endpoints) · [CI/CD](#cicd-pipeline-github-actions) · [Monitoring](#monitoring-prometheus-and-grafana) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -50,10 +50,10 @@ High-level data and serving flow:
 
 ```
 ml_learning/                       # repository root (clone folder name may differ)
-├── .github/workflows/ci.yml       # CI/CD Pipeline (4 jobs: lint → test → train → docker-build-smoke)
+├── .github/workflows/ci.yml       # CI/CD Pipeline (4 jobs: lint → testing → training-model → docker-build-smoke)
 ├── data/
 │   ├── heart_disease_UCI_dataset.csv      # Bundled raw UCI-style input
-│   ├── heart_disease_processed_dataset.csv  # Produced by EDA / preprocess (see Data section)
+│   ├── heart_disease_processed_dataset.csv  # Clean numeric table for training (EDA / preprocess)
 │   └── batch_predictions.csv      # Optional output from batch inference
 ├── models/                        # best_model.pkl, feature_names.pkl, training_metadata.json
 ├── mlruns/                        # MLflow tracking store
@@ -64,10 +64,21 @@ ml_learning/                       # repository root (clone folder name may diff
 │   ├── data_preprocessing/pre_processing_data.py  # load_data, clean_data, save_cleaned_csv
 │   ├── eda/eda.py                 # CLI EDA → clean CSV + plots
 │   └── model_training/            # train.py, inference.py (batch scoring)
-├── monitoring/                    # prometheus.yml, grafana/dashboards/
-├── k8s/                           # namespace, deployment, service, HPA, ingress
+├── monitoring/
+│   ├── prometheus.yml             # Prometheus scrape config for the API metrics endpoint
+│   └── grafana/
+│       ├── heart_disease_api.json # Grafana dashboard (panels for API metrics)
+│       └── provisioning/
+│           ├── dashboards/dashboards.yml   # Grafana: load dashboards from files
+│           └── datasources/datasource.yml # Grafana: Prometheus connection
+├── k8s/
+│   ├── namespace.yaml             # Isolates resources in namespace heart-disease
+│   ├── deployment.yaml            # API pods, image, replicas, health probes
+│   ├── service.yaml               # In-cluster access to the API Deployment
+│   ├── hpa.yaml                   # Autoscaling for the API Deployment
+│   └── ingress.yaml               # HTTP routing into the Service (optional)
 ├── scripts/test_full_flow.sh      # Optional end-to-end: lint, tests, pipeline, Compose
-├── docker-compose.yml
+├── docker-compose.yml             # Local stack: API + Prometheus + Grafana
 ├── Dockerfile
 ├── requirements.txt
 ├── pytest.ini
@@ -76,7 +87,37 @@ ml_learning/                       # repository root (clone folder name may diff
 
 **Note:** There is **no** `notebooks/` directory in this repo; EDA is **script-driven** via `src/eda/eda.py`. You can still open a Jupyter kernel and import the same modules if your coursework allows notebooks alongside scripts.
 
-For what each file under `data/` means and how it maps to `RAW_DATA_CSV` / `CLEAN_DATA_CSV`, see **[Data (`data/`)](#data)** below.
+The **Data** heading later in this file explains raw vs cleaned CSV files and how they relate to `RAW_DATA_CSV` and `CLEAN_DATA_CSV`.
+
+---
+
+## YAML files (purpose)
+
+Paths are relative to the repository root. Each file’s job is separate: Compose and monitoring configs support the local Docker stack; `k8s/` describes Kubernetes objects; the workflow file is only for GitHub’s runners.
+
+- **`docker-compose.yml`** — Declares the local three-service setup (build and run the API container, Prometheus, Grafana), including mounts for trained models, API log directory, Prometheus config, Grafana provisioning, and the dashboard JSON so Grafana and Prometheus start with the right settings.
+
+- **`monitoring/prometheus.yml`** — Configures how Prometheus scrapes the FastAPI `/metrics` endpoint (interval, job name, and target on the Compose network).
+
+- **`monitoring/grafana/provisioning/datasources/datasource.yml`** — Registers Prometheus as a Grafana data source so dashboards can run queries against metric series.
+
+- **`monitoring/grafana/provisioning/dashboards/dashboards.yml`** — Enables Grafana’s “load dashboards from disk” behavior for the dashboards directory.
+
+- **`monitoring/grafana/heart_disease_api.json`** — Defines the dashboard layout and queries (not YAML; shipped beside the Grafana provisioning files).
+
+- **`k8s/namespace.yaml`** — Creates the `heart-disease` namespace so Deployments, Services, and related objects are grouped together.
+
+- **`k8s/deployment.yaml`** — Describes the API workload: container image, replica count, environment for model paths, and health checks using `/health`.
+
+- **`k8s/service.yaml`** — Provides stable in-cluster networking to the API pods and maps external-facing port **80** to port **8000** in the container.
+
+- **`k8s/hpa.yaml`** — Expresses autoscaling policy (CPU and memory targets) for the API Deployment when the cluster exposes those metrics.
+
+- **`k8s/ingress.yaml`** — Declares HTTP routing from a hostname to the Service for environments that run an ingress controller (host and annotations are meant to be edited for your cluster).
+
+- **`.github/workflows/ci.yml`** — Defines the continuous integration pipeline: lint, tests, preprocessing and training, artifact upload, Docker image build, and container smoke checks on GitHub Actions.
+
+The files under `monitoring/` are wired into the stack by `docker-compose.yml`. The Kubernetes manifests do not embed those same Prometheus or Grafana configs; running metrics inside a cluster would require additional manifests or operators beyond this repo.
 
 ---
 
@@ -189,7 +230,7 @@ docker-compose up -d --build
 - **Prometheus:** http://127.0.0.1:9090  
 - **Grafana:** http://127.0.0.1:3000 — login **admin** / **admin123**  
 
-Send a few `POST /predict` requests, then check targets in Prometheus and the provisioned Grafana dashboard under `monitoring/grafana/dashboards/`.
+Send a few `POST /predict` requests, then check targets in Prometheus and the provisioned Grafana dashboard JSON at `monitoring/grafana/heart_disease_api.json`.
 
 Stop:
 
@@ -205,7 +246,7 @@ docker-compose down
 bash scripts/test_full_flow.sh
 ```
 
-Runs lint, tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose (stack may stay running — stop with `docker-compose down`). **Docker must be running.**
+Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running.**
 
 ---
 
@@ -336,7 +377,7 @@ Exact metrics for your run are in `models/training_metadata.json` and in the MLf
 }
 ```
 
-(Field names match `PredictionResponse` in `src/api/api.py`.)
+Field names match `PredictionResponse` in `src/api/api.py`. Numeric values are **examples**; `confidence`, `prediction`, `label`, and `risk_level` depend on the trained model and the request body. **`risk_level` bands:** confidence below 0.35 → LOW, below 0.65 → MEDIUM, otherwise HIGH.
 
 ---
 
@@ -348,9 +389,9 @@ Workflow: **`.github/workflows/ci.yml`** — in the GitHub UI the workflow name 
 
 **Jobs (sequential):**
 
-1. **`lint`** — `flake8 src tests`
-2. **`test`** — `pytest tests/` (writes `pytest-results.xml`), uploads artifact **`test-results`** (`if: always()` on the upload step)
-3. **`train`** — `python src/eda/eda.py preprocess`, `python src/model_training/train.py`, uploads **`ml-training`** (`models/` + `mlruns/`) on success
+1. **`lint`** — `flake8 src tests api`
+2. **`testing`** — `pytest tests/` (writes `pytest-results.xml`), uploads artifact **`test-results`** (`if: always()` on the upload step)
+3. **`training-model`** — `python src/eda/eda.py preprocess`, `python src/model_training/train.py`, uploads **`ml-training`** (`models/` + `mlruns/`) on success
 4. **`docker-build-smoke`** — downloads **`ml-training`**, `docker build -t heart-disease-api:ci .`, smoke **`/health`** and **`POST /predict`**
 
 CI **does not** start Grafana or Prometheus; use **Docker Compose** locally for that.
@@ -360,7 +401,7 @@ CI **does not** start Grafana or Prometheus; use **Docker Compose** locally for 
 **Local parity (core ML steps):**
 
 ```bash
-python3 -m flake8 src tests
+python3 -m flake8 src tests api
 python3 -m pytest tests/ -v
 python3 src/eda/eda.py preprocess
 python3 src/model_training/train.py
@@ -384,7 +425,7 @@ docker-compose up -d --build
 
 ### Dashboard
 
-Dashboard JSON is provisioned from `monitoring/grafana/dashboards/` (e.g. heart disease API panels tied to scraped metrics).
+`monitoring/grafana/heart_disease_api.json` holds the dashboard panels and PromQL queries. The YAML files under `monitoring/grafana/provisioning/` tell Grafana to attach to Prometheus and to import dashboards from the configured folder at startup.
 
 ### Metrics (API)
 

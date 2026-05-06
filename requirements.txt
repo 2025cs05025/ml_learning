@@ -1,4 +1,5 @@
 # =============================================================================
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 # MLOps assignment — Heart disease prediction (Python 3.9+ recommended)
 # Install from repo root: pip install -r requirements.txt
 #

@@ -1,6 +1,7 @@
 # Deployment — FastAPI container (image must exist in cluster or via docker load).
 # Env mirrors Dockerfile: PYTHONPATH, MODEL_PATH, FEATURE_PATH.
 # Usage: kubectl apply -f k8s/deployment.yaml
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 ---
 apiVersion: apps/v1
 kind: Deployment

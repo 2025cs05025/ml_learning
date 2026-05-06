@@ -3,10 +3,12 @@
 # =============================================================================
 # test_full_flow.sh — one-command end-to-end run
 # =============================================================================
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 #
 # Default behavior (no args):
 #   flake8 → pytest → EDA → train → batch predict → Docker Compose monitoring
-#   (API :8000 + Prometheus :9090 + Grafana :3000), then stack is stopped.
+#   (API :8000 + Prometheus :9090 + Grafana :3000). On success the stack stays up;
+#   stop manually: docker compose down  (or docker-compose down).
 #
 set -euo pipefail
 
@@ -47,11 +49,11 @@ if [[ -f .venv/bin/activate ]]; then
   source .venv/bin/activate
   echo "Using virtualenv: .venv"
 else
-  echo "Tip: create and activate .venv first (README Part B–C)." >&2
+  echo "Tip: create and activate .venv first (see README → Quick start)." >&2
 fi
 
 echo "==> [1/6] Lint (flake8)"
-flake8 src tests
+flake8 src tests api
 
 echo "==> [2/6] Unit tests (pytest) → pytest-results.xml"
 pytest tests/ -v --tb=short --junitxml=pytest-results.xml
@@ -160,7 +162,7 @@ monitoring_stack() {
     sleep 2
   done
   if [[ "$dash_ok" -ne 1 ]]; then
-    echo "ERROR: no dashboards in Grafana — check monitoring/grafana/dashboards/ and provisioning YAML." >&2
+    echo "ERROR: no dashboards in Grafana — check monitoring/grafana/*.json and provisioning YAML." >&2
     compose_down_safe
     exit 1
   fi

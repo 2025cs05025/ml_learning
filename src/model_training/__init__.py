@@ -18,6 +18,8 @@ Model training and batch inference **scripts** (**File:** ``src/model_training/_
 
 This package intentionally exports no runtime API beyond submodule imports; run scripts
 with ``python src/model_training/train.py`` from the repo root (see README).
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 __all__: list[str] = []

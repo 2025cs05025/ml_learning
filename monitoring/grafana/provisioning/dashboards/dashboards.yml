@@ -1,4 +1,5 @@
-# Loads JSON dashboards from /var/lib/grafana/dashboards (mounted from monitoring/grafana/dashboards).
+# Loads JSON dashboards from /var/lib/grafana/dashboards (files live in monitoring/grafana/*.json).
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 ---
 apiVersion: 1
 

@@ -27,6 +27,8 @@ ensure ``models/best_model.pkl`` and ``models/feature_names.pkl`` exist (train f
 - ``FEATURE_PATH`` — pickled feature name list (default: ``<repo>/models/feature_names.pkl``).
 - ``API_LOG_PATH`` — optional request log file (default: ``<repo>/api_requests.log``).
 - ``PORT`` — bind port when running ``python src/api/api.py`` (default: ``8000``).
+
+**Author.** SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations
@@ -221,11 +223,13 @@ app = FastAPI(
 
 @app.get("/health", summary="Health check")
 def health_check():
+    """Return liveness JSON and whether the sklearn pipeline is loaded."""
     return {"status": "ok", "model_loaded": model is not None}
 
 
 @app.post("/predict", response_model=PredictionResponse, summary="Predict heart disease risk")
 def predict(patient: PatientData):
+    """Run the saved pipeline on one patient row; update Prometheus metrics and logs."""
     if model is None or feature_names is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
@@ -289,6 +293,7 @@ def metrics():
 
 @app.get("/", summary="API info")
 def root():
+    """Minimal discovery payload with links to docs and main routes."""
     return {
         "name": "Heart Disease Prediction API",
         "version": "1.0.0",

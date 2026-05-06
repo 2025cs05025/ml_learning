@@ -26,7 +26,7 @@ on raw inputs so batch scoring matches training features.
 
 Author
 ------
-SANDIP BHATTACHARYYA — 2025cs05025
+SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations

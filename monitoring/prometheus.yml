@@ -1,5 +1,6 @@
 # Prometheus scrape config for Docker Compose (service name heart-disease-api).
 # Mounted into the prometheus container via docker-compose.yml.
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 
 global:
   scrape_interval: 15s

@@ -1,4 +1,5 @@
 # .github/workflows/ci.yml — CI/CD for MLOps assignment (course S2-25_AMLCSZG523).
+# Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 #
 # ── When does this run? ───────────────────────────────────────────────────────
 #   • push / merge to branches: main, master only (other branches: open a PR)
@@ -7,15 +8,15 @@
 #
 # ── Four jobs (sequential) ───────────────────────────────────────────────────
 #   1. lint — flake8
-#   2. test — pytest + upload test-results (pytest-results.xml)
-#   3. train — preprocess → train → upload ml-training (models/ + mlruns/)
-#   4. docker-build-smoke — needs train; docker build + /health + /predict smoke
+#   2. testing — pytest + upload test-results (pytest-results.xml)
+#   3. training-model — preprocess → train.py → upload ml-training (models/ + mlruns/)
+#   4. docker-build-smoke — needs training-model; docker build + /health + /predict smoke
 #
 #   Later jobs show "Queued" until the previous job finishes. That is normal.
 #
 # ── How long? (ballpark) ─────────────────────────────────────────────────────
 #   Often ~15–35 minutes total. Slow parts: pip install (per job), GridSearchCV,
-#   Docker build. train: 45m; lint/test: 15m each.
+#   Docker build. training-model: 45m; lint/testing: 15m each.
 #
 name: CI/CD Pipeline
 
@@ -49,7 +50,7 @@ jobs:
       - name: Lint (flake8)
         run: flake8 src tests api
 
-  test:
+  testing:
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 15
@@ -81,10 +82,10 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  # Train models + MLflow (runs only if tests pass).
-  train:
+  # Train models + MLflow (runs only if testing passes).
+  training-model:
     runs-on: ubuntu-latest
-    needs: test
+    needs: testing
     timeout-minutes: 45
 
     steps:
@@ -120,10 +121,10 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  # Starts only after train succeeds; stays "Queued" until then.
+  # Starts only after training-model succeeds; stays "Queued" until then.
   docker-build-smoke:
     runs-on: ubuntu-latest
-    needs: train
+    needs: training-model
     steps:
       - name: Checkout
         uses: actions/checkout@v4

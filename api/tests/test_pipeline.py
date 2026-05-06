@@ -1,6 +1,8 @@
 """
 Task 5: Unit Tests for Data Processing and Model Code
 Run with:  pytest tests/ -v --cov=src --cov-report=term-missing
+
+Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 import sys

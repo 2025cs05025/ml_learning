@@ -35,7 +35,7 @@ appropriate to each estimator family.
     python src/model_training/train.py
     python src/model_training/train.py --experiment my_experiment
 
-Author: SANDIP BHATTACHARYYA — 2025cs05025
+Author: SANDIP BHATTACHARYYA — BITS Pilani ID 2025cs05025
 """
 
 from __future__ import annotations
