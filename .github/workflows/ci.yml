@@ -71,14 +71,17 @@ jobs:
           pip install -r requirements.txt
 
       - name: Unit tests (pytest)
-        run: pytest tests/ -v --tb=short --junitxml=pytest-results.xml
+        run: |
+          pytest tests/ -v --tb=short --junitxml=pytest-results.xml 2>&1 | tee pytest-output.log
 
-      - name: Upload test results (pytest JUnit XML)
+      - name: Upload test results (pytest JUnit XML + console log)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: pytest-results.xml
+          path: |
+            pytest-results.xml
+            pytest-output.log
           retention-days: 14
           if-no-files-found: warn
 
@@ -154,4 +157,20 @@ jobs:
           curl -fsS -X POST http://127.0.0.1:8000/predict \
             -H "Content-Type: application/json" \
             -d '{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
+
+          # Capture request log written by API_LOG_PATH inside the container.
+          # The Dockerfile sets: API_LOG_PATH=/app/logs/api_requests.log
+          mkdir -p ci-artifacts
+          docker cp api-ci:/app/logs/api_requests.log ci-artifacts/api_requests.log || true
+          docker logs api-ci > ci-artifacts/api_container_stdout.log 2>&1 || true
+
           docker rm -f api-ci
+
+      - name: Upload API request logs (smoke test)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-smoke-logs
+          path: ci-artifacts/
+          retention-days: 14
+          if-no-files-found: warn
