@@ -36,4 +36,4 @@ api_requests.log
 # models/*.pkl
 # models/training_metadata.json
 # screenshots/*.png
-# data/heart_clean.csv
+# data/heart_disease_processed_dataset.csv

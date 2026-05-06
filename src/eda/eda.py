@@ -4,7 +4,7 @@ Exploratory Data Analysis (EDA) for the heart disease dataset.
 **File:** ``src/eda/eda.py`` — executable CLI (``python src/eda/eda.py [step]``).
 
 **Role in the project.** This is the entry point for **data understanding** and for
-producing **heart_clean.csv**. Downstream ``model_training/train.py`` expects that file;
+producing **heart_disease_processed_dataset.csv**. Downstream ``model_training/train.py`` expects that file;
 run ``python src/eda/eda.py all`` (or at least the preprocess step) before training.
 
 Preprocessing primitives live in ``data_preprocessing/pre_processing_data.py``.
@@ -16,7 +16,7 @@ This module orchestrates them and adds summaries plus plots.
 2. **EDA** — Figures under ``screenshots/`` (class balance, histograms, correlation
    heatmap, age by outcome) via :func:`perform_eda`.
 
-The CLI :func:`main` wires preprocessing to those steps and writes ``data/heart_clean.csv``.
+The CLI :func:`main` wires preprocessing to those steps and writes ``data/heart_disease_processed_dataset.csv``.
 
 **CLI (project root)**
 
@@ -25,12 +25,12 @@ The CLI :func:`main` wires preprocessing to those steps and writes ``data/heart_
     python src/eda/eda.py              # full pipeline (default)
     python src/eda/eda.py load         # step 1 — load raw CSV only
     python src/eda/eda.py inspect      # step 2 — load + data-quality summary
-    python src/eda/eda.py preprocess   # step 3 — clean + save data/heart_clean.csv
+    python src/eda/eda.py preprocess   # step 3 — clean + save data/heart_disease_processed_dataset.csv
     python src/eda/eda.py eda          # step 4 — plots from cleaned CSV (after preprocess)
     python src/eda/eda.py all          # chained workflow
     python src/eda/eda.py --help
 
-**Dataset.** ``data/heart_disease_uci.csv`` (comma header, space-separated rows).
+**Dataset.** ``data/heart_disease_UCI_dataset.csv`` (comma header, space-separated rows).
 
 **Attribution.** UCI Heart Disease —
 https://archive.ics.uci.edu/ml/datasets/Heart+Disease
@@ -295,7 +295,7 @@ def run_step_inspect(raw_path: Path) -> pd.DataFrame:
 
 def run_step_preprocess(raw_path: Path) -> pd.DataFrame:
     """
-    Step 3 — load raw data, run :func:`clean_data`, write ``data/heart_clean.csv``.
+    Step 3 — load raw data, run :func:`clean_data`, write ``data/heart_disease_processed_dataset.csv``.
 
     Does **not** generate PNG plots; use ``eda`` step or ``all`` for charts.
     """
@@ -368,7 +368,7 @@ def main(argv: list[str] | None = None) -> None:
 
     - **load** — Read raw CSV only (sanity check file reads).
     - **inspect** — load + print table summary (:func:`inspect_data`).
-    - **preprocess** — load, :func:`clean_data`, save ``heart_clean.csv`` (required before training).
+    - **preprocess** — load, :func:`clean_data`, save ``heart_disease_processed_dataset.csv`` (required before training).
     - **eda** — Load an *existing* cleaned CSV and write PNGs to ``screenshots/`` (default).
     - **all** — inspect raw data, preprocess, run EDA, ensure cleaned CSV exists.
 
@@ -390,7 +390,7 @@ Examples:
   python src/eda/eda.py preprocess
   python src/eda/eda.py eda
   python src/eda/eda.py all
-  python src/eda/eda.py eda --clean-csv data/heart_clean.csv
+  python src/eda/eda.py eda --clean-csv data/heart_disease_processed_dataset.csv
 """,
     )
     parser.add_argument(

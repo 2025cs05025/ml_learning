@@ -42,8 +42,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_CSV = DATA_DIR / "heart_disease_uci.csv"
-CLEAN_DATA_CSV = DATA_DIR / "heart_clean.csv"
+RAW_DATA_CSV = DATA_DIR / "heart_disease_UCI_dataset.csv"
+CLEAN_DATA_CSV = DATA_DIR / "heart_disease_processed_dataset.csv"
 
 SCREENSHOTS_DIR = PROJECT_ROOT / "screenshots"
 # Trained artifact outputs (pickles, metadata) — not the `model_training/` script package.

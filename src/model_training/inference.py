@@ -3,11 +3,11 @@ Batch inference: raw heart-disease CSV → shared preprocessing → trained pipe
 
 **Purpose.** Score new rows with the **same** cleaning path as training (via
 ``data_preprocessing.load_data`` / ``clean_data``), then apply ``models/best_model.pkl``.
-Demonstrates reproducible packaging: no silent feature drift between train and predict.
+Demonstrates reproducible packaging: no silent feature drift between train and inference.
 
 **Inputs**
 
-- Raw CSV (default ``data/heart_disease_uci.csv`` or ``--raw``).
+- Raw CSV (default ``data/heart_disease_UCI_dataset.csv`` or ``--raw``).
 - ``--model`` — pickled sklearn ``Pipeline`` (default ``models/best_model.pkl``).
 - ``--feature-names`` — column order saved at train time (default ``models/feature_names.pkl``).
 
@@ -18,7 +18,7 @@ Demonstrates reproducible packaging: no silent feature drift between train and p
 
 **Typical run (repo root)**::
 
-    python src/model_training/predict.py --output data/batch_predictions.csv
+    python src/model_training/inference.py --output data/batch_predictions.csv
 
 Train first so ``models/`` exists.
 
@@ -35,8 +35,8 @@ import joblib
 import numpy as np
 import pandas as pd
 
-_PRED_DIR = Path(__file__).resolve().parent
-_SRC_ROOT = _PRED_DIR.parent  # .../src
+_INF_DIR = Path(__file__).resolve().parent
+_SRC_ROOT = _INF_DIR.parent  # .../src
 if str(_SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(_SRC_ROOT))
 
@@ -57,7 +57,7 @@ def run_inference(
 
     1. Load pickled ``Pipeline`` and list of feature names from training.
     2. Parse ``raw_csv`` with :func:`data_preprocessing.load_data` and clean with
-       :func:`data_preprocessing.clean_data` (same rules as for ``heart_clean.csv``).
+       :func:`data_preprocessing.clean_data` (same rules as for ``heart_disease_processed_dataset.csv``).
     3. Align columns to ``feature_names`` (order matters for the fitted model).
     4. Output predicted class and probability of the positive class.
 
@@ -68,7 +68,7 @@ def run_inference(
     Parameters
     ----------
     raw_csv
-        Path to raw UCI-style heart data (same schema as ``data/heart_disease_uci.csv``).
+        Path to raw UCI-style heart data (same schema as ``data/heart_disease_UCI_dataset.csv``).
     model_path, feature_names_path
         Outputs from training (defaults under ``models/``).
     output_csv
@@ -137,8 +137,8 @@ def main(argv: list[str] | None = None) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python src/model_training/predict.py --output data/batch_predictions.csv
-  python src/model_training/predict.py --raw data/heart_disease_uci.csv --model models/best_model.pkl
+  python src/model_training/inference.py --output data/batch_predictions.csv
+  python src/model_training/inference.py --raw data/heart_disease_UCI_dataset.csv --model models/best_model.pkl
 """,
     )
     parser.add_argument(

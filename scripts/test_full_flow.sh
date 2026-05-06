@@ -63,7 +63,7 @@ echo "==> [4/6] Train models + MLflow + save models/"
 python src/model_training/train.py
 
 echo "==> [5/6] Batch inference sample"
-python src/model_training/predict.py --output data/batch_predictions.csv
+python src/model_training/inference.py --output data/batch_predictions.csv
 
 PREDICT_JSON='{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
 

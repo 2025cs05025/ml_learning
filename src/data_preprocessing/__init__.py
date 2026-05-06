@@ -3,9 +3,9 @@ Data preprocessing package (**File:** ``src/data_preprocessing/__init__.py``).
 
 Load raw heart-disease CSV, clean, export.
 
-**Purpose.** Shared logic for turning ``data/heart_disease_uci.csv`` into a
+**Purpose.** Shared logic for turning ``data/heart_disease_UCI_dataset.csv`` into a
 model-ready table (encoding, imputation, binary target). Used by ``eda/eda.py``
-when building ``data/heart_clean.csv`` and by ``model_training/predict.py`` so
+when building ``data/heart_disease_processed_dataset.csv`` and by ``model_training/inference.py`` so
 inference matches training inputs.
 
 **Naming.** The folder is ``data_preprocessing`` (underscores) for valid Python

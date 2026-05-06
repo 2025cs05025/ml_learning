@@ -7,11 +7,11 @@ Train, compare, and persist heart-disease classifiers with MLflow tracking.
 
 .. code-block:: bash
 
-    python src/eda/eda.py preprocess   # ensure data/heart_clean.csv exists
+    python src/eda/eda.py preprocess   # ensure data/heart_disease_processed_dataset.csv exists
     python src/model_training/train.py
     python src/model_training/train.py --experiment my_run
 
-**Scope (assignment Tasks 2–4).** Loads ``data/heart_clean.csv``, builds two sklearn
+**Scope (assignment Tasks 2–4).** Loads ``data/heart_disease_processed_dataset.csv``, builds two sklearn
 ``Pipeline`` objects (Logistic Regression with scaling; Random Forest without scaling),
 tunes hyperparameters with stratified ``GridSearchCV`` (ROC-AUC), reports hold-out test
 metrics, logs params/metrics/artifacts to MLflow (experiment ``heart_disease_prediction``
@@ -25,7 +25,7 @@ appropriate to each estimator family.
 **Artifacts written**
 
 - ``models/best_model.pkl`` — Winning fitted pipeline.
-- ``models/feature_names.pkl`` — Training column order for ``predict.py``.
+- ``models/feature_names.pkl`` — Training column order for ``inference.py``.
 - ``models/training_metadata.json`` — Metrics, versions, paths, timestamps.
 - ``screenshots/`` — Confusion matrix and ROC images per model.
 - ``mlruns/`` — MLflow runs (models, plots; UI via ``mlflow ui --backend-store-uri ./mlruns``).
@@ -153,7 +153,7 @@ def load_clean_data(path: Path | str | None = None) -> pd.DataFrame:
     Parameters
     ----------
     path
-        Defaults to :obj:`config.paths.CLEAN_DATA_CSV` (``data/heart_clean.csv``).
+        Defaults to :obj:`config.paths.CLEAN_DATA_CSV` (``data/heart_disease_processed_dataset.csv``).
 
     Returns
     -------
@@ -506,7 +506,7 @@ def save_best_model(
     - ``models/feature_names.pkl`` — column order of ``X_train`` (must match prediction).
     - ``models/training_metadata.json`` — JSON with metrics, library versions, paths.
 
-    ``predict.py`` loads the pickle and feature list by default.
+    ``inference.py`` loads the pickle and feature list by default.
     """
     best = max(results, key=lambda x: x[1]["roc_auc"])
     best_model, best_metrics, best_name = best[0], best[1], best[2]
@@ -574,7 +574,7 @@ Requires cleaned CSV (default: {CLEAN_DATA_CSV}). Produce it with:
         type=Path,
         default=None,
         help=(
-            "Path to heart_clean.csv — numeric features + target column "
+            "Path to heart_disease_processed_dataset.csv — numeric features + target column "
             f"(default: {CLEAN_DATA_CSV})"
         ),
     )
