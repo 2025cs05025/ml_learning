@@ -233,9 +233,12 @@ ensure_docker_on_path || true
 
 if ! docker_daemon_ready; then
   echo ""
-  echo "ERROR: Docker daemon not available — cannot run step [6/6]." >&2
-  echo "  Start Docker Desktop (macOS/Windows) or your Docker engine, then re-run:" >&2
-  echo "    bash scripts/test_full_flow.sh" >&2
+  echo "ERROR: Docker daemon not available — cannot run step [6/6] (Compose monitoring)." >&2
+  echo "  Fix: start a Docker engine, then verify with:  docker info" >&2
+  echo "  • macOS — Docker Desktop: open the app and wait until it says Docker is running." >&2
+  echo "  • macOS/Linux — Colima:  colima start    then:  docker info" >&2
+  echo "  • Linux — service:  sudo systemctl start docker   (or your distro equivalent)" >&2
+  echo "  Re-run:  bash scripts/test_full_flow.sh" >&2
   exit 1
 fi
 

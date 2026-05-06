@@ -125,11 +125,28 @@ The files under `monitoring/` are wired into the stack by `docker-compose.yml`. 
 
 All commands assume the **repository root** (directory containing this `README.md`).
 
+### Recommended order (what to run, in sequence)
+
+| Order | Step | Needs from earlier steps |
+|------:|------|---------------------------|
+| 1 | [Clone and setup](#1-clone-and-setup) | — |
+| 2 | [EDA](#2-explore-the-data-eda) | 1 |
+| 3 | [Train](#3-train-the-model) | 1, 2 (cleaned CSV) |
+| 4 | [MLflow UI](#4-mlflow-ui-optional) (optional) | 1, 3 |
+| 5 | [Unit tests](#5-unit-tests) | 1 only (can run right after 1, or after 3) |
+| 6 | [Batch inference](#6-batch-inference-local) (optional) | 1, 3 (`models/`) |
+| 7 | [API locally (Python)](#7-start-the-api-locally) | 1, 3 (`models/`) |
+| 8 | [Docker (one container)](#8-docker-api-image-only) | 1, 3 + **Docker daemon**; **stop step 7 first** so port **8000** is free |
+| 9 | [Docker Compose](#9-monitoring-stack-api--prometheus--grafana) (API + Prometheus + Grafana) | 1, 3 + Docker; **stop step 7 or 8** if they still hold **8000** |
+| 10 | [One-shot script](#10-one-shot-script-optional) (optional) | Docker running; runs lint, tests, EDA, train, batch predict, Compose |
+
+**Rule:** Steps **2** then **3** are required before **6, 7, 8, or 9**. Step **7** (uvicorn in your venv) and steps **8–9** (containers) all want port **8000** by default—only run **one** of them at a time unless you change ports.
+
 ### 1. Clone and setup
 
 ```bash
 git clone <YOUR_REPO_URL>
-cd ml_learning
+cd <YOUR_CLONE_DIRECTORY>   # often ml_learning
 
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
@@ -158,29 +175,21 @@ python3 src/model_training/train.py
 
 This trains **Logistic Regression** and **Random Forest** with **GridSearchCV** (ROC-AUC), logs runs to **MLflow** under `mlruns/`, and saves the best pipeline to `models/best_model.pkl` plus `models/feature_names.pkl` and `models/training_metadata.json`.
 
-### 4. MLflow UI
+### 4. MLflow UI (optional)
 
 ```bash
 python3 -m mlflow ui --backend-store-uri ./mlruns --host 127.0.0.1 -p 5050
 ```
 
-Open **http://127.0.0.1:5050** (use another port if busy).
+Open **http://127.0.0.1:5050** (use another port if busy). Run any time after **step 3**.
 
-### 5. Batch inference (local)
-
-```bash
-python3 src/model_training/inference.py --output data/batch_predictions.csv
-```
-
-Uses the same **raw → preprocess** path as training (`load_data` + `clean_data`), then the saved sklearn **Pipeline**.
-
-### 6. Unit tests
+### 5. Unit tests
 
 ```bash
 python3 -m pytest tests/ -v
 ```
 
-Covers preprocessing, model pipelines, and API **`PatientData`** validation (see `tests/test_pipeline.py`).
+Covers preprocessing, model pipelines, and API **`PatientData`** validation (see `tests/test_pipeline.py`). Only **step 1** is required; run early for a fast check, or after **step 3** once training artifacts exist.
 
 **JUnit XML (matches CI artifact):**
 
@@ -188,7 +197,17 @@ Covers preprocessing, model pipelines, and API **`PatientData`** validation (see
 python3 -m pytest tests/ -v --tb=short --junitxml=pytest-results.xml
 ```
 
+### 6. Batch inference (local)
+
+```bash
+python3 src/model_training/inference.py --output data/batch_predictions.csv
+```
+
+Uses the same **raw → preprocess** path as training (`load_data` + `clean_data`), then the saved sklearn **Pipeline**. Requires **steps 1–3** (trained `models/`).
+
 ### 7. Start the API locally
+
+Use this to verify the API **without** Docker. **Stop the server** (Ctrl+C in that terminal) before **step 8** or **9**, which also bind to port **8000**.
 
 ```bash
 python3 src/api/api.py
@@ -201,7 +220,7 @@ python3 -m uvicorn api.api:app --app-dir src --host 0.0.0.0 --port 8000
 
 ### 8. Docker (API image only)
 
-Train first so `models/best_model.pkl` and `models/feature_names.pkl` exist.
+Requires **steps 1–3** so `models/best_model.pkl` and `models/feature_names.pkl` exist at **image build** time. Do **not** run this at the same time as **step 7** on the same port.
 
 ```bash
 docker build -t heart-disease-api:latest .
@@ -219,11 +238,12 @@ curl -fsS -X POST http://127.0.0.1:8000/predict \
 
 ### 9. Monitoring stack (API + Prometheus + Grafana)
 
-From repo root (after `models/` exists — Compose mounts `./models` read-only):
+From repo root after **`models/`** exists (Compose mounts `./models` read-only). Stop anything else using **8000** (e.g. **step 7** or **step 8**) before starting.
 
 ```bash
 docker-compose build
 docker-compose up -d --build
+# same with Compose V2:  docker compose build && docker compose up -d --build
 ```
 
 - **API docs:** http://127.0.0.1:8000/docs  
@@ -246,7 +266,7 @@ docker-compose down
 bash scripts/test_full_flow.sh
 ```
 
-Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running.**
+Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running** (e.g. Docker Desktop, or **Colima** with `colima start` — if step [6/6] fails with “daemon not available”, run `docker info` after starting your engine).
 
 ---
 
@@ -457,6 +477,7 @@ docker-compose down
 - **Grafana “No data”** — Send at least one `POST /predict`; check http://127.0.0.1:9090/targets (job for the API should be **UP**).
 - **`docker-compose` vs `docker compose`** — Install the [Compose CLI](https://docs.docker.com/compose/install/) or use the Docker Desktop plugin; subcommands are the same.
 - **Docker permission denied (e.g. Colima)** — `colima stop && colima start`; verify `docker info`.
+- **`test_full_flow.sh` step [6/6] — Docker daemon not available** — Start your engine first (`colima start` on Mac with Colima, or open Docker Desktop), then `docker info` until it shows **Server** section; re-run the script.
 - **`/predict` 500 in container** — Rebuild image; this repo pins **`scikit-learn==1.6.1`** in `requirements.txt` for pickle compatibility.
 - **Training parallel errors** — `export MLOPS_N_JOBS=1` before `train.py` in restricted environments.
 
