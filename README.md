@@ -72,11 +72,14 @@ ml_learning/                       # repository root (clone folder name may diff
 │           ├── dashboards/dashboards.yml   # Grafana: load dashboards from files
 │           └── datasources/datasource.yml # Grafana: Prometheus connection
 ├── k8s/
-│   ├── namespace.yaml             # Isolates resources in namespace heart-disease
-│   ├── deployment.yaml            # API pods, image, replicas, health probes
-│   ├── service.yaml               # In-cluster access to the API Deployment
-│   ├── hpa.yaml                   # Autoscaling for the API Deployment
-│   └── ingress.yaml               # HTTP routing into the Service (optional)
+│   ├── kustomization.yaml         # kubectl apply -k k8s/ — API + Prometheus + Grafana
+│   ├── namespace.yaml
+│   ├── deployment.yaml            # API
+│   ├── service.yaml
+│   ├── prometheus-*.yaml          # ConfigMap + Deployment + Service
+│   ├── grafana-*.yaml             # ConfigMaps + Deployment + Service
+│   ├── hpa.yaml                   # Optional
+│   └── ingress.yaml               # Optional
 ├── scripts/test_full_flow.sh      # Optional end-to-end: lint, tests, pipeline, Compose
 ├── docker-compose.yml             # Local stack: API + Prometheus + Grafana
 ├── Dockerfile
@@ -115,9 +118,16 @@ Paths are relative to the repository root. Each file’s job is separate: Compos
 
 - **`k8s/ingress.yaml`** — Declares HTTP routing from a hostname to the Service for environments that run an ingress controller (host and annotations are meant to be edited for your cluster).
 
+- **`k8s/prometheus-configmap.yaml`**, **`prometheus-deployment.yaml`**, **`prometheus-service.yaml`** — In-cluster Prometheus that scrapes the API Service at **`heart-disease-api-service:80/metrics`**.
+
+- **`k8s/grafana-datasource-configmap.yaml`**, **`grafana-dashboard-provider-configmap.yaml`**, **`grafana-dashboard-json-configmap.yaml`**, **`grafana-deployment.yaml`**, **`grafana-service.yaml`** — Grafana with the same datasource + dashboard JSON as Compose (admin **`admin`** / **`admin123`**).
+
+- **`k8s/kustomization.yaml`** — Lists manifests so you can run **`kubectl apply -k k8s/`** for the **full** namespace stack (API + Prometheus + Grafana).
+
 - **`.github/workflows/ci.yml`** — Defines the continuous integration pipeline: lint, tests, preprocessing and training, artifact upload, Docker image build, and container smoke checks on GitHub Actions.
 
-The files under `monitoring/` are wired into the stack by `docker-compose.yml`. The Kubernetes manifests do not embed those same Prometheus or Grafana configs; running metrics inside a cluster would require additional manifests or operators beyond this repo.
+The files under `monitoring/` are wired into **`docker-compose.yml`**. For Kubernetes, scrape targets and Grafana provisioning are duplicated into **`k8s/prometheus-*.yaml`** and **`k8s/grafana-*.yaml`** (dashboard JSON is copied into **`grafana-dashboard-json-configmap.yaml`**). If you edit **`monitoring/grafana/heart_disease_api.json`**, regenerate that ConfigMap with:  
+`kubectl create configmap grafana-dashboard-heart-api -n heart-disease --from-file=heart_disease_api.json=monitoring/grafana/heart_disease_api.json -o yaml --dry-run=client > k8s/grafana-dashboard-json-configmap.yaml`
 
 ---
 
@@ -309,19 +319,22 @@ docker build -t heart-disease-api:latest .
 minikube image load heart-disease-api:latest
 ```
 
-**4. Apply manifests**
+**4. Apply manifests (full stack: API + Prometheus + Grafana)**
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-# Optional: hpa.yaml, ingress.yaml as needed
+kubectl apply -k k8s/
 ```
+
+This uses **`k8s/kustomization.yaml`**. API-only apply is still possible if you omit monitoring files:  
+`kubectl apply -f k8s/namespace.yaml -f k8s/deployment.yaml -f k8s/service.yaml`  
+Optional extras: **`kubectl apply -f k8s/hpa.yaml`**, **`kubectl apply -f k8s/ingress.yaml`**.
 
 **5. Wait for rollout**
 
 ```bash
-kubectl rollout status deployment/heart-disease-api -n heart-disease --timeout=120s
+kubectl rollout status deployment/heart-disease-api -n heart-disease --timeout=180s
+kubectl rollout status deployment/prometheus -n heart-disease --timeout=120s
+kubectl rollout status deployment/grafana -n heart-disease --timeout=180s
 ```
 
 **6. Check resources**
@@ -330,7 +343,7 @@ kubectl rollout status deployment/heart-disease-api -n heart-disease --timeout=1
 kubectl get pods,svc,deployment,endpoints -n heart-disease
 ```
 
-Pods should be **Running** and **READY**; **endpoints** for `heart-disease-api-service` should list pod IPs (not empty). If pods are not ready: `kubectl describe pod -n heart-disease -l app=heart-disease-api` and `kubectl logs -n heart-disease -l app=heart-disease-api --tail=80`.
+Pods for **`heart-disease-api`**, **`prometheus`**, and **`grafana`** should be **Running**. **Endpoints** for `heart-disease-api-service` should list pod IPs. If something fails: `kubectl describe pod -n heart-disease -l app=heart-disease-api` (and similarly for **`app=prometheus`** / **`app=grafana`**), plus **`kubectl logs`** for the failing pod.
 
 **7. Reach the API from your computer**
 
@@ -397,7 +410,37 @@ minikube stop
 - **`k8s/namespace.yaml`** — namespace `heart-disease`
 - **`k8s/deployment.yaml`** — Deployment `heart-disease-api`, image `heart-disease-api:latest`, probes on `/health`, 2 replicas by default
 - **`k8s/service.yaml`** — LoadBalancer Service `heart-disease-api-service`, port **80** → container **8000**
-- **`k8s/hpa.yaml`**, **`k8s/ingress.yaml`** — optional autoscaling / ingress (adjust hostnames and image pull policy for your environment)
+- **`k8s/prometheus-*.yaml`** — Prometheus Deployment + ConfigMap scrape target **`heart-disease-api-service:80`**, Service port **9090**
+- **`k8s/grafana-*.yaml`** — Grafana Deployment (admin **`admin`** / **`admin123`**), dashboard ConfigMaps, Service port **3000**
+- **`k8s/kustomization.yaml`** — **`kubectl apply -k k8s/`** applies API + Prometheus + Grafana together
+- **`k8s/hpa.yaml`**, **`k8s/ingress.yaml`** — optional autoscaling / ingress (apply separately if needed)
+
+### Open Prometheus and Grafana (Minikube)
+
+After **steps 4–6** (`kubectl apply -k k8s/` and rollouts), forward each Service locally (separate terminals or test one at a time):
+
+```bash
+kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80
+kubectl port-forward -n heart-disease svc/prometheus 9090:9090
+kubectl port-forward -n heart-disease svc/grafana 3000:3000
+```
+
+| Service | URL | Notes |
+|---------|-----|--------|
+| API | **http://127.0.0.1:8080/docs** | Same `/predict` flow as earlier steps |
+| Prometheus | **http://127.0.0.1:9090** | Targets → **`heart-disease-api`** should be **UP** after traffic |
+| Grafana | **http://127.0.0.1:3000** | **`admin`** / **`admin123`** |
+
+Send **`POST /predict`** to the API so dashboards receive metrics.
+
+### Prometheus and Grafana: Docker Compose vs Kubernetes
+
+| Where | Command | Stack |
+|--------|---------|--------|
+| **Docker** | `docker compose up -d --build` | **`docker-compose.yml`** — API + Prometheus + Grafana |
+| **Kubernetes** | `kubectl apply -k k8s/` after **`minikube image load`** | Same three roles in-cluster; Prometheus scrapes **`heart-disease-api-service`** in **`heart-disease`**. |
+
+**Compose** is the quickest full stack on one host; **Minikube + `kubectl apply -k k8s/`** deploys the **same services** as Kubernetes workloads.
 
 ---
 
