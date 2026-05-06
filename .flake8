@@ -5,6 +5,7 @@ extend-ignore = E402, W503
 exclude =
     .venv,
     .venv-*,
+    .venv-test-reqs,
     venv,
     __pycache__,
     .git,

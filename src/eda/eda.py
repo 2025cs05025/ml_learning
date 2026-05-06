@@ -368,7 +368,8 @@ def main(argv: list[str] | None = None) -> None:
 
     - **load** — Read raw CSV only (sanity check file reads).
     - **inspect** — load + print table summary (:func:`inspect_data`).
-    - **preprocess** — load, :func:`clean_data`, save ``heart_disease_processed_dataset.csv`` (required before training).
+    - **preprocess** — load, :func:`clean_data`, save
+      ``heart_disease_processed_dataset.csv`` (required before training).
     - **eda** — Load an *existing* cleaned CSV and write PNGs to ``screenshots/`` (default).
     - **all** — inspect raw data, preprocess, run EDA, ensure cleaned CSV exists.
 
