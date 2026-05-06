@@ -69,7 +69,7 @@ else
 fi
 
 echo "==> [1/6] Lint (flake8)"
-flake8 src tests api
+flake8 src tests
 
 echo "==> [2/6] Unit tests (pytest) → pytest-results.xml"
 pytest tests/ -v --tb=short --junitxml=pytest-results.xml

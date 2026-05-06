@@ -279,7 +279,7 @@ More shutdown cases (K8s, port-forwards, volumes): **[Clean stopping](#clean-sto
 bash scripts/test_full_flow.sh
 ```
 
-Runs **the same lint scope as CI** (`flake8 src tests api`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running** for step **[6/6]** (e.g. Docker Desktop, or **Colima** with `colima start` — confirm with `docker info`).
+Runs **the same lint scope as CI** (`flake8 src tests`), tests (writes `pytest-results.xml`), EDA, training, batch inference, then brings up Compose. **On success the stack is left running** on ports 8000 / 9090 / 3000; stop with `docker compose down` or `docker-compose down`. **Docker must be running** for step **[6/6]** (e.g. Docker Desktop, or **Colima** with `colima start` — confirm with `docker info`).
 
 If Docker is not available, run **steps 1–5 only** (no Compose):
 
@@ -519,7 +519,7 @@ Workflow: **`.github/workflows/ci.yml`** — in the GitHub UI the workflow name 
 
 **Jobs (sequential):**
 
-1. **`lint`** — `flake8 src tests api`
+1. **`lint`** — `flake8 src tests`
 2. **`testing`** — `pytest tests/` (writes `pytest-results.xml`), uploads artifact **`test-results`** (`if: always()` on the upload step)
 3. **`training-model`** — `python src/eda/eda.py preprocess`, `python src/model_training/train.py`, uploads **`ml-training`** (`models/` + `mlruns/`) on success
 4. **`docker-build-smoke`** — downloads **`ml-training`**, `docker build -t heart-disease-api:ci .`, smoke **`/health`** and **`POST /predict`**
@@ -531,7 +531,7 @@ CI **does not** start Grafana or Prometheus; use **Docker Compose** locally for 
 **Local parity (core ML steps):**
 
 ```bash
-python3 -m flake8 src tests api
+python3 -m flake8 src tests
 python3 -m pytest tests/ -v
 python3 src/eda/eda.py preprocess
 python3 src/model_training/train.py

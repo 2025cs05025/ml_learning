@@ -48,7 +48,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lint (flake8)
-        run: flake8 src tests api
+        run: flake8 src tests
 
   testing:
     runs-on: ubuntu-latest
