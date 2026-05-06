@@ -199,10 +199,6 @@ def test_model_accuracy_reasonable(splits):
         assert acc > 0.70, f"{build_fn.__name__} accuracy {acc:.2f} < 0.70"
 
 
-def test_intentional_ci_failure():
-    assert False, "Intentional failure to verify CI halts after testing job fails."
-
-
 # ─────────────────────────────────────────────
 # TASK 5: API INPUT VALIDATION TESTS
 # ─────────────────────────────────────────────
