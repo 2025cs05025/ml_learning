@@ -5,7 +5,7 @@
 
 An end-to-end ML pipeline for predicting heart disease risk using the UCI Heart Disease dataset: preprocessing, EDA, training with MLflow, batch inference, FastAPI, Docker, Prometheus/Grafana monitoring, GitHub Actions CI/CD, and optional Kubernetes (`k8s/`).
 
-**Jump to:** [Prerequisites](#prerequisites) · [Architecture](#architecture) · [Project structure](#project-structure) · [YAML files (purpose)](#yaml-files-purpose) · [Data (`data/`)](#data) · [Quick start](#quick-start-end-to-end) · [Kubernetes](#kubernetes-deployment-minikube) · [Model details](#model-details) · [API](#api-endpoints) · [CI/CD](#cicd-pipeline-github-actions) · [Monitoring](#monitoring-prometheus-and-grafana) · [Troubleshooting](#troubleshooting)
+**Jump to:** [Prerequisites](#prerequisites) · [Architecture](#architecture) · [Project structure](#project-structure) · [YAML files (purpose)](#yaml-files-purpose) · [Data (`data/`)](#data) · [Quick start](#quick-start-end-to-end) · [Kubernetes](#kubernetes-deployment-minikube) · [Clean stopping](#clean-stopping) · [Model details](#model-details) · [API](#api-endpoints) · [CI/CD](#cicd-pipeline-github-actions) · [Monitoring](#monitoring-prometheus-and-grafana) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -13,7 +13,7 @@ An end-to-end ML pipeline for predicting heart disease risk using the UCI Heart 
 
 - **Python** 3.9+ (CI uses 3.11; tested locally on 3.9–3.12)
 - **Docker** + **Docker Compose** — use **`docker compose`** (V2 plugin) or **`docker-compose`** (standalone CLI); this repo’s examples often use `docker-compose`
-- Free ports for the monitoring demo: **8000** (API), **9090** (Prometheus), **3000** (Grafana)
+- Free ports for the monitoring demo: **8000** (API — local Python, Docker, Compose), **8080** (API — Kubernetes [port-forward](#kubernetes-deployment-minikube), step **7**, maps `8080:80`), **9090** (Prometheus), **3000** (Grafana)
 - **Git**
 - **kubectl** + a cluster (optional — for `k8s/`)
 - **minikube** (optional — for local Kubernetes, same idea as course reference repos)
@@ -266,7 +266,10 @@ Stop:
 
 ```bash
 docker-compose down
+# or:  docker compose down
 ```
+
+More shutdown cases (K8s, port-forwards, volumes): **[Clean stopping](#clean-stopping)**.
 
 **Compose services (fixed container names):** `heart-disease-api`, `prometheus`, `grafana`.
 
@@ -345,93 +348,66 @@ kubectl get pods,svc,deployment,endpoints -n heart-disease
 
 Pods for **`heart-disease-api`**, **`prometheus`**, and **`grafana`** should be **Running**. **Endpoints** for `heart-disease-api-service` should list pod IPs. If something fails: `kubectl describe pod -n heart-disease -l app=heart-disease-api` (and similarly for **`app=prometheus`** / **`app=grafana`**), plus **`kubectl logs`** for the failing pod.
 
-**7. Reach the API from your computer**
+**7. Port-forward (easiest way to reach Services on Minikube)**
 
-The Service maps **port 80** → container **8000**. On localhost you will usually see a **high port** (e.g. `62243`), not 8000.
+Inside Minikube, Services run **inside the cluster**. From your Mac, the straightforward way to open the API, Prometheus, and Grafana is **`kubectl port-forward`** — stable localhost ports, no dependence on `minikube service` tunnels (which are fiddly on **macOS + Docker driver**).
 
-**Option A — `kubectl port-forward` (good default for quick tests)**  
-Leave this running in one terminal:
+Open **one terminal per forward** (or keep only the service you need), leave each command running:
 
 ```bash
+# Terminal 1 — API (Service port 80 → app on 8000 in pod)
 kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80
+
+# Terminal 2 — Prometheus (after kubectl apply -k k8s/)
+kubectl port-forward -n heart-disease svc/prometheus 9090:9090
+
+# Terminal 3 — Grafana
+kubectl port-forward -n heart-disease svc/grafana 3000:3000
 ```
 
-In another terminal:
+| Local URL | What |
+|-----------|------|
+| **http://127.0.0.1:8080/docs** | FastAPI |
+| **http://127.0.0.1:9090** | Prometheus |
+| **http://127.0.0.1:3000** | Grafana (**admin** / **admin123**) |
+
+**8. Test the API and generate metrics for Grafana** (with **Terminal 1** port-forward still running)
+
+Many dashboard panels (e.g. **`predict_requests_total`**) only appear **after** at least one **`POST /predict`** — the Python client creates those time series on first use. Prometheus scrapes every **5s**, so wait **~15–30 seconds** after traffic, then refresh Grafana (**time range: Last 15 minutes**).
 
 ```bash
 curl -fsS http://127.0.0.1:8080/health
+PRED='{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
+for i in 1 2 3 4 5; do
+  curl -fsS -X POST http://127.0.0.1:8080/predict \
+    -H "Content-Type: application/json" -d "$PRED" >/dev/null
+  echo "predict $i ok"
+done
 ```
 
-**Option B — `minikube service` (Minikube opens a tunnel to the LoadBalancer Service)**  
-Print the URL:
+With **Terminal 2** (Prometheus) open, check **Status → Targets**: job **`heart-disease-api`** should be **UP**. In **Graph**, try: **`up{job="heart-disease-api"}`** (should be **1**) then **`predict_requests_total`**.
+
+**Optional — `minikube service … --url`** can print a URL for the LoadBalancer Service, but on macOS the tunnel often **must stay open** in another window. Prefer **`kubectl port-forward`** for predictable **127.0.0.1** ports.
+
+**Cleanup (example)** — symmetric with **`kubectl apply -k k8s/`**; frees in-cluster resources. Stop **port-forwards** first (**Ctrl+C** in each `kubectl port-forward` terminal). See **[Clean stopping](#clean-stopping)** for the full checklist (Compose, Minikube, volumes).
 
 ```bash
-minikube service heart-disease-api-service -n heart-disease --url
-```
-
-Example output: `http://127.0.0.1:62243`. On **macOS** with the **Docker** driver, Minikube may warn that **the tunnel must stay active**—if `curl` fails after the command exits, either:
-
-- Run without `--url` in **terminal 1** (leave it open):  
-  `minikube service heart-disease-api-service -n heart-disease`  
-  then `curl` the URL/port it prints in **terminal 2**, or  
-- Use **Option A** above.
-
-**8. Test**
-
-With **Option A** (port-forward still running):
-
-```bash
-curl -fsS http://127.0.0.1:8080/health
-curl -fsS -X POST http://127.0.0.1:8080/predict \
-  -H "Content-Type: application/json" \
-  -d '{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
-```
-
-With **Option B**:
-
-```bash
-API_URL=$(minikube service heart-disease-api-service -n heart-disease --url)
-curl -fsS "${API_URL}/health"
-curl -fsS -X POST "${API_URL}/predict" \
-  -H "Content-Type: application/json" \
-  -d '{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
-```
-
-**Cleanup (example)**
-
-```bash
-kubectl delete -n heart-disease deployment,service --all
-kubectl delete namespace heart-disease
-minikube stop
+kubectl delete -k k8s/
+# If anything remains:  kubectl delete namespace heart-disease
+minikube stop   # optional; use minikube delete only if you want to wipe the cluster
 ```
 
 ### Kubernetes manifest summary
 
 - **`k8s/namespace.yaml`** — namespace `heart-disease`
-- **`k8s/deployment.yaml`** — Deployment `heart-disease-api`, image `heart-disease-api:latest`, probes on `/health`, 2 replicas by default
+- **`k8s/deployment.yaml`** — Deployment `heart-disease-api`, image `heart-disease-api:latest`, probes on `/health`, **1** replica by default (avoids per-pod metrics confusion with Prometheus; scale up if you need HA)
 - **`k8s/service.yaml`** — LoadBalancer Service `heart-disease-api-service`, port **80** → container **8000**
 - **`k8s/prometheus-*.yaml`** — Prometheus Deployment + ConfigMap scrape target **`heart-disease-api-service:80`**, Service port **9090**
 - **`k8s/grafana-*.yaml`** — Grafana Deployment (admin **`admin`** / **`admin123`**), dashboard ConfigMaps, Service port **3000**
 - **`k8s/kustomization.yaml`** — **`kubectl apply -k k8s/`** applies API + Prometheus + Grafana together
 - **`k8s/hpa.yaml`**, **`k8s/ingress.yaml`** — optional autoscaling / ingress (apply separately if needed)
 
-### Open Prometheus and Grafana (Minikube)
-
-After **steps 4–6** (`kubectl apply -k k8s/` and rollouts), forward each Service locally (separate terminals or test one at a time):
-
-```bash
-kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80
-kubectl port-forward -n heart-disease svc/prometheus 9090:9090
-kubectl port-forward -n heart-disease svc/grafana 3000:3000
-```
-
-| Service | URL | Notes |
-|---------|-----|--------|
-| API | **http://127.0.0.1:8080/docs** | Same `/predict` flow as earlier steps |
-| Prometheus | **http://127.0.0.1:9090** | Targets → **`heart-disease-api`** should be **UP** after traffic |
-| Grafana | **http://127.0.0.1:3000** | **`admin`** / **`admin123`** |
-
-Send **`POST /predict`** to the API so dashboards receive metrics.
+Use **step 7** port-forwards for Prometheus and Grafana as well as the API. Send **`POST /predict`** to **http://127.0.0.1:8080** so Prometheus gets metrics and Grafana dashboards fill in.
 
 ### Prometheus and Grafana: Docker Compose vs Kubernetes
 
@@ -441,6 +417,26 @@ Send **`POST /predict`** to the API so dashboards receive metrics.
 | **Kubernetes** | `kubectl apply -k k8s/` after **`minikube image load`** | Same three roles in-cluster; Prometheus scrapes **`heart-disease-api-service`** in **`heart-disease`**. |
 
 **Compose** is the quickest full stack on one host; **Minikube + `kubectl apply -k k8s/`** deploys the **same services** as Kubernetes workloads.
+
+---
+
+## Clean stopping
+
+Shut down what you started so **ports** (8000, 8080, 9090, 3000, 5050) and **clusters** are free. Order below is safe for typical use; you can skip rows that do not apply.
+
+| How you ran it | Clean stop |
+|----------------|------------|
+| **Local API** ([Quick start](#7-start-the-api-locally) step **7**) | **Ctrl+C** in the terminal running `api.py` or `uvicorn`. |
+| **MLflow UI** ([step **4**](#4-mlflow-ui-optional)) | **Ctrl+C** in that terminal. |
+| **Single-container Docker** ([step **8**](#8-docker-api-image-only)) | **Ctrl+C**; the example `docker run` uses **`--rm`**, so the container is removed on exit. |
+| **Docker Compose** ([step **9**](#9-monitoring-stack-api--prometheus--grafana), [script](#10-one-shot-script-optional)) | From repo root: **`docker compose down`** or **`docker-compose down`**. Frees **8000**, **9090**, **3000**. |
+| **`kubectl port-forward`** ([Kubernetes step **7**](#kubernetes-deployment-minikube)) | **Ctrl+C** in each forward terminal (**8080**, **9090**, **3000**). |
+| **Kubernetes workloads** | From repo root: **`kubectl delete -k k8s/`** (matches **`apply -k`**). If the namespace lingers: **`kubectl delete namespace heart-disease`**. |
+| **Minikube** (optional) | After deletes: **`minikube stop`**. Use **`minikube delete`** only if you want to remove the cluster VM entirely. |
+
+**Switching Docker → Kubernetes:** run **`docker compose down`** (or **`docker-compose down`**) before Minikube so **8000** is not still bound by Compose and you do not hit the wrong API.
+
+**Compose volumes:** By default, **`docker compose down`** removes containers and the Compose network but **keeps** the named volume **`grafana_data`** (Grafana’s local DB). To remove that volume too: **`docker compose down -v`** — dashboard JSON still comes from the repo mount; you only reset Grafana’s stored state.
 
 ---
 
@@ -458,7 +454,12 @@ Exact metrics for your run are in `models/training_metadata.json` and in the MLf
 
 ## API endpoints
 
-**Base URL** (local): `http://127.0.0.1:8000`
+**Base URL** depends on how you run the API:
+
+| Setup | Base URL |
+|--------|----------|
+| Local `uvicorn` / **Docker** / **Compose** | `http://127.0.0.1:8000` |
+| **Kubernetes** (this README’s `kubectl port-forward … 8080:80`) | `http://127.0.0.1:8080` |
 
 - **`GET /docs`** — Swagger UI  
 - **`GET /health`** — Liveness; JSON includes model load status  
@@ -497,6 +498,16 @@ Exact metrics for your run are in `models/training_metadata.json` and in the MLf
 ```
 
 Field names match `PredictionResponse` in `src/api/api.py`. Numeric values are **examples**; `confidence`, `prediction`, `label`, and `risk_level` depend on the trained model and the request body. **`risk_level` bands:** confidence below 0.35 → LOW, below 0.65 → MEDIUM, otherwise HIGH.
+
+**Shell example** (swap the host/port for your setup — **8000** local/Compose, **8080** with K8s port-forward):
+
+```bash
+PRED='{"age":63,"sex":1,"cp":3,"trestbps":145,"chol":233,"fbs":1,"restecg":2,"thalach":150,"exang":0,"oldpeak":2.3,"slope":2,"ca":0,"thal":1}'
+curl -fsS -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d "$PRED"
+# Kubernetes:  http://127.0.0.1:8080/predict
+```
+
+If **zsh** prints a lone **`%`** after the JSON line, that only means the response had no trailing newline — the request still succeeded.
 
 ---
 
@@ -565,7 +576,10 @@ Structured logging to **stdout** and, when configured, **`API_LOG_PATH`** (under
 
 ```bash
 docker-compose down
+# or:  docker compose down
 ```
+
+For a full shutdown checklist (port-forwards, K8s, volumes), see **[Clean stopping](#clean-stopping)**.
 
 ---
 
@@ -573,14 +587,18 @@ docker-compose down
 
 - **Port 8000 in use** — `lsof -nP -iTCP:8000 -sTCP:LISTEN`; stop the conflicting process or use only Compose for the API.
 - **`Clean data not found` when training** — Run `python3 src/eda/eda.py all` or `preprocess` first.
-- **Grafana “No data”** — Send at least one `POST /predict`; check http://127.0.0.1:9090/targets (job for the API should be **UP**).
+- **Grafana “No data” (Compose or Minikube)** — (1) **Generate traffic**: several **`POST /predict`** to the API (panels like `predict_requests_total` stay empty until then). (2) **Wait** one or two Prometheus scrape intervals (~5–15s here), set Grafana time range to **Last 15 minutes**, refresh. (3) **Prometheus** (port-forward **9090** on K8s): **Status → Targets** → **`heart-disease-api`** must be **UP**; **Graph** → query **`up{job="heart-disease-api"}`**. If **DOWN**, test from a throwaway pod:  
+`kubectl run -n heart-disease curl-metrics --rm -i --restart=Never --image=curlimages/curl -- curl -sS http://heart-disease-api-service/metrics | head`  
+(expect `# HELP` / metric lines; **ENDPOINTS** for the Service must not be empty). (4) In Grafana **Connections → Data sources → Prometheus → Save & test** should succeed. (5) **Explore** → run `predict_requests_total` after step (1).
 - **`docker-compose` vs `docker compose`** — Install the [Compose CLI](https://docs.docker.com/compose/install/) or use the Docker Desktop plugin; subcommands are the same.
 - **Docker permission denied (e.g. Colima)** — `colima stop && colima start`; verify `docker info`.
 - **`test_full_flow.sh` step [6/6] — Docker daemon not available** — Start your engine (`colima start` with Colima, or Docker Desktop), then `docker info` until a **Server** section appears. Or finish without Compose: `SKIP_COMPOSE=1 bash scripts/test_full_flow.sh` or `--skip-compose`.
 - **`/predict` 500 in container** — Rebuild image; this repo pins **`scikit-learn==1.6.1`** in `requirements.txt` for pickle compatibility.
 - **Training parallel errors** — `export MLOPS_N_JOBS=1` before `train.py` in restricted environments.
-- **Minikube (macOS, Docker driver) — `minikube service --url` works once then `curl` fails** — The tunnel may stop when the process exits; use **`kubectl port-forward -n heart-disease svc/heart-disease-api-service 8080:80`** (see README Kubernetes step 7), or keep **`minikube service …`** running without `--url` in another terminal.
+- **Minikube (macOS, Docker driver) — `minikube service --url` works once then `curl` fails** — Prefer **`kubectl port-forward`** for the API, Prometheus, and Grafana (see **Kubernetes step 7** in this README). That gives fixed **127.0.0.1** ports and no tunnel flakiness.
 - **Minikube — `ImagePullBackOff` / image not found** — Build on the host, then **`minikube image load heart-disease-api:latest`**, or build inside Minikube’s Docker: `eval $(minikube docker-env)` then `docker build -t heart-disease-api:latest .`
+- **Prometheus query empty but `curl …:8080/metrics` shows `predict_requests_total`** — Often **multiple API replicas**: metrics live **per pod**; scrapes via the Service may hit a pod that never got `/predict`. **`k8s/deployment.yaml`** defaults to **1** replica for demos. If you use **2+**, send enough traffic or **`kubectl scale deployment/heart-disease-api -n heart-disease --replicas=1`**, wait for rollout, send predicts again, wait ~15s, re-query Prometheus.
+- **zsh shows `%` after `curl` JSON** — Harmless: the shell marks a line that did not end with a newline. Use **`curl -fsS … | cat`** or ignore.
 
 ---
 

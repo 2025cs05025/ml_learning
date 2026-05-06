@@ -11,7 +11,10 @@ metadata:
   labels:
     app: heart-disease-api
 spec:
-  replicas: 2
+  # In-memory Prometheus metrics are per pod; scraping the Service can hit a pod with no /predict
+  # traffic yet (labeled counters may be absent). Use 1 replica for reliable demo metrics, or scale up
+  # for HA knowing Grafana may look sparse until all pods see traffic.
+  replicas: 1
   selector:
     matchLabels:
       app: heart-disease-api
