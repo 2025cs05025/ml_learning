@@ -23,15 +23,7 @@ An end-to-end ML pipeline for predicting heart disease risk using the UCI Heart 
 
 ## Architecture
 
-High-level data and serving flow (generated diagram — regenerate after layout changes):
-
-![MLOps architecture diagram](docs/architecture_mlops.png)
-
-```bash
-python3 scripts/draw_architecture_diagram.py   # writes docs/architecture_mlops.png
-```
-
-ASCII overview (same story as the figure above):
+High-level data and serving flow:
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐     ┌──────────────┐
